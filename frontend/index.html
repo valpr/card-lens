@@ -70,15 +70,15 @@
             </div>
           </div>
           
-          <!-- Mode Selector: Frame Card vs Trace Text Focus -->
+          <!-- Mode Selector: Frame Card vs Focus Text (Box / Circle) -->
           <div class="crop-mode-bar" role="tablist" aria-label="Cropping mode">
             <button type="button" id="btnModeCrop" class="crop-mode-btn active" role="tab" aria-selected="true" title="Adjust the outer Anki card frame">
               <span class="mode-icon">📐</span>
               <span class="mode-label">1. Frame Card</span>
             </button>
-            <button type="button" id="btnModeTrace" class="crop-mode-btn" role="tab" aria-selected="false" title="Trace over specific dialogue/text for OCR">
-              <span class="mode-icon">✏️</span>
-              <span class="mode-label">2. Trace Text Focus</span>
+            <button type="button" id="btnModeTrace" class="crop-mode-btn" role="tab" aria-selected="false" title="Drag a box or circle around text to focus OCR">
+              <span class="mode-icon">🎯</span>
+              <span class="mode-label">2. Focus Text</span>
               <span id="traceActiveBadge" class="trace-badge hidden">Focused</span>
             </button>
           </div>
@@ -87,7 +87,7 @@
             <img id="imageToCrop" alt="Source screenshot to crop" src="">
             <canvas id="traceCanvas" class="trace-canvas"></canvas>
             <div id="traceGuide" class="trace-guide hidden">
-              <span class="trace-guide-text">👆 Trace with finger over text to focus OCR</span>
+              <span class="trace-guide-text">👆 Drag a box or circle around text to focus</span>
               <button type="button" id="btnClearTrace" class="btn-clear-trace hidden">Clear</button>
             </div>
           </div>
@@ -144,7 +144,7 @@
             <div class="result-title-group">
               <span class="badge">OCR Output</span>
               <span id="detectedLangBadge" class="badge badge-subtle">JA</span>
-              <span id="focusedOcrBadge" class="badge badge-focused hidden">🎯 Traced Focus</span>
+              <span id="focusedOcrBadge" class="badge badge-focused hidden">🎯 Focused Text</span>
               <button type="button" id="btnToggleAutoAttach" class="badge badge-toggle" title="Toggle background card polling">
                 <span class="toggle-dot"></span> Auto-Attach: <strong id="autoAttachStateText">OFF</strong>
               </button>

@@ -13,12 +13,13 @@ let pollingCountdownInterval = null;
 let snapshotNoteIds = new Set();
 let isPolling = false;
 
-// Tracing / Focus State
+// Text Focus (Box / Circle) State
 let currentCropMode = 'crop'; // 'crop' | 'trace'
-let traceStrokes = []; // Array of strokes, each is array of {x, y}
-let traceBounds = null; // { minX, minY, maxX, maxY }
+let traceBounds = null; // { minX, minY, maxX, maxY } in container px
 let isDrawingTrace = false;
-let currentStroke = [];
+let currentStroke = []; // points [{x, y}] for the active gesture
+let traceStartPoint = null; // { x, y } where drag started
+let isCircleGesture = false; // whether the active gesture is circular/loop
 
 // DOM Elements
 const stages = {
@@ -729,7 +730,7 @@ function destroyCropper() {
 }
 
 // ==========================================
-// Drawing / Tracing Text Focus Controller
+// Drawing / Box / Circle Text Focus Controller
 // ==========================================
 function initTraceControls() {
   if (!elements.traceCanvas) return;
@@ -740,38 +741,55 @@ function initTraceControls() {
     if (currentCropMode !== 'trace') return;
     canvas.setPointerCapture(e.pointerId);
     isDrawingTrace = true;
+    isCircleGesture = false;
 
     const rect = canvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
 
+    traceStartPoint = { x, y };
     currentStroke = [{ x, y }];
-    traceStrokes.push(currentStroke);
     renderTraceCanvas();
   });
 
   canvas.addEventListener('pointermove', (e) => {
-    if (!isDrawingTrace) return;
+    if (!isDrawingTrace || !traceStartPoint) return;
 
     const rect = canvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
 
     currentStroke.push({ x, y });
+
+    // Check if the motion is a circle/loop or a straight diagonal box drag
+    if (currentStroke.length >= 6) {
+      let pathLen = 0;
+      for (let i = 1; i < currentStroke.length; i++) {
+        pathLen += Math.hypot(currentStroke[i].x - currentStroke[i - 1].x, currentStroke[i].y - currentStroke[i - 1].y);
+      }
+      const directDist = Math.hypot(x - traceStartPoint.x, y - traceStartPoint.y);
+      if (pathLen > 1.45 * directDist && pathLen > 45) {
+        isCircleGesture = true;
+      }
+    }
+
     renderTraceCanvas();
   });
 
-  const finishStroke = () => {
+  const finishGesture = () => {
     if (!isDrawingTrace) return;
     isDrawingTrace = false;
     calculateTraceBounds();
+    currentStroke = [];
+    traceStartPoint = null;
+    isCircleGesture = false;
     renderTraceCanvas();
     updateTraceUI();
     playSound('pop');
   };
 
-  canvas.addEventListener('pointerup', finishStroke);
-  canvas.addEventListener('pointercancel', finishStroke);
+  canvas.addEventListener('pointerup', finishGesture);
+  canvas.addEventListener('pointercancel', finishGesture);
 
   if (elements.btnModeCrop) {
     elements.btnModeCrop.addEventListener('click', () => setCropMode('crop'));
@@ -848,37 +866,55 @@ function setCropMode(mode) {
       cropper.disable();
     }
   }
+  renderTraceCanvas();
 }
 
 function calculateTraceBounds() {
-  if (traceStrokes.length === 0) {
-    traceBounds = null;
-    return;
+  if (currentStroke.length < 2 || !traceStartPoint) {
+    return; // Don't wipe existing bounds on an accidental micro-tap
   }
 
-  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-  let hasPoints = false;
+  let minX, minY, maxX, maxY;
 
-  traceStrokes.forEach(stroke => {
-    stroke.forEach(pt => {
-      hasPoints = true;
+  if (isCircleGesture) {
+    // Circling / loop gesture: envelope across all points along the loop
+    minX = Infinity;
+    minY = Infinity;
+    maxX = -Infinity;
+    maxY = -Infinity;
+    currentStroke.forEach(pt => {
       if (pt.x < minX) minX = pt.x;
       if (pt.y < minY) minY = pt.y;
       if (pt.x > maxX) maxX = pt.x;
       if (pt.y > maxY) maxY = pt.y;
     });
-  });
-
-  if (hasPoints) {
-    const radius = 14;
-    traceBounds = {
-      minX: Math.max(0, minX - radius),
-      minY: Math.max(0, minY - radius),
-      maxX: maxX + radius,
-      maxY: maxY + radius
-    };
   } else {
-    traceBounds = null;
+    // Diagonal box drag: opposite corners of start and end
+    const lastPt = currentStroke[currentStroke.length - 1];
+    minX = Math.min(traceStartPoint.x, lastPt.x);
+    minY = Math.min(traceStartPoint.y, lastPt.y);
+    maxX = Math.max(traceStartPoint.x, lastPt.x);
+    maxY = Math.max(traceStartPoint.y, lastPt.y);
+  }
+
+  // Minimum gesture threshold (12px) to prevent tiny accidental taps from creating boxes
+  if (maxX - minX < 12 || maxY - minY < 12) {
+    return;
+  }
+
+  // Clamp within outer crop box
+  if (cropper) {
+    const cb = cropper.getCropBoxData();
+    if (cb && cb.width > 0 && cb.height > 0) {
+      minX = Math.max(cb.left, minX);
+      minY = Math.max(cb.top, minY);
+      maxX = Math.min(cb.left + cb.width, maxX);
+      maxY = Math.min(cb.top + cb.height, maxY);
+    }
+  }
+
+  if (maxX - minX >= 10 && maxY - minY >= 10) {
+    traceBounds = { minX, minY, maxX, maxY };
   }
 }
 
@@ -891,98 +927,170 @@ function renderTraceCanvas() {
 
   ctx.clearRect(0, 0, w, h);
 
-  if (traceStrokes.length === 0) return;
+  const cropBox = cropper ? cropper.getCropBoxData() : null;
 
-  // 1. Draw glowing highlighter strokes (Google Lens style cyan)
-  ctx.save();
-  ctx.lineCap = 'round';
-  ctx.lineJoin = 'round';
+  // 1. Live Gesture Drawing (in progress)
+  if (isDrawingTrace && currentStroke.length >= 2 && traceStartPoint) {
+    ctx.save();
+    if (isCircleGesture) {
+      // Freehand circle / loop trail
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.shadowColor = 'rgba(56, 189, 248, 0.7)';
+      ctx.shadowBlur = 10;
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.5)';
+      ctx.lineWidth = 14;
+      ctx.beginPath();
+      ctx.moveTo(currentStroke[0].x, currentStroke[0].y);
+      for (let i = 1; i < currentStroke.length; i++) {
+        ctx.lineTo(currentStroke[i].x, currentStroke[i].y);
+      }
+      ctx.stroke();
 
-  ctx.shadowColor = 'rgba(56, 189, 248, 0.6)';
-  ctx.shadowBlur = 12;
-  ctx.strokeStyle = 'rgba(56, 189, 248, 0.45)';
-  ctx.lineWidth = 26;
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 3;
+      ctx.stroke();
 
-  traceStrokes.forEach(stroke => {
-    if (stroke.length < 2) return;
-    ctx.beginPath();
-    ctx.moveTo(stroke[0].x, stroke[0].y);
-    for (let i = 1; i < stroke.length; i++) {
-      ctx.lineTo(stroke[i].x, stroke[i].y);
+      // Live dashed envelope enclosing the circle
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      currentStroke.forEach(pt => {
+        if (pt.x < minX) minX = pt.x;
+        if (pt.y < minY) minY = pt.y;
+        if (pt.x > maxX) maxX = pt.x;
+        if (pt.y > maxY) maxY = pt.y;
+      });
+      ctx.setLineDash([4, 4]);
+      ctx.strokeStyle = '#38bdf8';
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(minX, minY, maxX - minX, maxY - minY);
+    } else {
+      // Rubber-band rectangle box
+      const lastPt = currentStroke[currentStroke.length - 1];
+      const bx = Math.min(traceStartPoint.x, lastPt.x);
+      const by = Math.min(traceStartPoint.y, lastPt.y);
+      const bw = Math.abs(lastPt.x - traceStartPoint.x);
+      const bh = Math.abs(lastPt.y - traceStartPoint.y);
+
+      // Translucent cyan fill
+      ctx.fillStyle = 'rgba(56, 189, 248, 0.16)';
+      ctx.fillRect(bx, by, bw, bh);
+
+      // Dashed border
+      ctx.setLineDash([5, 4]);
+      ctx.strokeStyle = '#38bdf8';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(bx, by, bw, bh);
+
+      // Corner markers
+      ctx.setLineDash([]);
+      ctx.fillStyle = '#38bdf8';
+      const hs = 6;
+      ctx.fillRect(bx - hs / 2, by - hs / 2, hs, hs);
+      ctx.fillRect(bx + bw - hs / 2, by - hs / 2, hs, hs);
+      ctx.fillRect(bx - hs / 2, by + bh - hs / 2, hs, hs);
+      ctx.fillRect(bx + bw - hs / 2, by + bh - hs / 2, hs, hs);
+
+      // Real-time dimensions tag
+      if (bw > 30 && bh > 20) {
+        const dimText = `${Math.round(bw)} × ${Math.round(bh)}`;
+        ctx.font = '10px monospace';
+        ctx.fillStyle = 'rgba(18, 18, 20, 0.85)';
+        const textW = ctx.measureText(dimText).width + 8;
+        ctx.fillRect(bx, by + bh + 4, textW, 14);
+        ctx.fillStyle = '#38bdf8';
+        ctx.fillText(dimText, bx + 4, by + bh + 14);
+      }
     }
-    ctx.stroke();
-  });
+    ctx.restore();
+    return;
+  }
 
-  // Core stroke
-  ctx.shadowBlur = 0;
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.65)';
-  ctx.lineWidth = 14;
-  traceStrokes.forEach(stroke => {
-    if (stroke.length < 2) return;
-    ctx.beginPath();
-    ctx.moveTo(stroke[0].x, stroke[0].y);
-    for (let i = 1; i < stroke.length; i++) {
-      ctx.lineTo(stroke[i].x, stroke[i].y);
-    }
-    ctx.stroke();
-  });
-  ctx.restore();
-
-  // 2. Draw neat focus bounding box around all strokes when finished drawing
+  // 2. Snapped Focus Area (after gesture finishes)
   if (!isDrawingTrace && traceBounds) {
     const { minX, minY, maxX, maxY } = traceBounds;
-    const pad = 6;
-    const bx = minX - pad;
-    const by = minY - pad;
-    const bw = (maxX - minX) + pad * 2;
-    const bh = (maxY - minY) + pad * 2;
+    const bx = minX;
+    const by = minY;
+    const bw = maxX - minX;
+    const bh = maxY - minY;
 
     ctx.save();
-    // Dashed focus box
+
+    // Spotlight effect: Dim outside focus box inside cropBox
+    if (cropBox) {
+      ctx.fillStyle = currentCropMode === 'trace' ? 'rgba(0, 0, 0, 0.42)' : 'rgba(0, 0, 0, 0.22)';
+      ctx.beginPath();
+      // Outer rectangle (cropBox)
+      ctx.rect(cropBox.left, cropBox.top, cropBox.width, cropBox.height);
+      // Cutout inner focus box (counter-clockwise)
+      ctx.rect(bx + bw, by, -bw, bh);
+      ctx.fill();
+    }
+
+    // Highlight fill over the focused text
+    ctx.fillStyle = 'rgba(56, 189, 248, 0.08)';
+    ctx.fillRect(bx, by, bw, bh);
+
+    // Dashed focus border
     ctx.strokeStyle = '#38bdf8';
     ctx.lineWidth = 2;
     ctx.setLineDash([5, 4]);
     ctx.strokeRect(bx, by, bw, bh);
 
-    // Corner brackets
+    // High-contrast corner brackets (Google Lens style)
     ctx.setLineDash([]);
-    ctx.lineWidth = 3;
-    const corner = Math.min(10, bw / 4, bh / 4);
+    ctx.lineWidth = 3.5;
+    ctx.strokeStyle = '#38bdf8';
+    const corner = Math.min(12, bw / 3, bh / 3);
 
+    // Top-left
     ctx.beginPath();
     ctx.moveTo(bx, by + corner);
     ctx.lineTo(bx, by);
     ctx.lineTo(bx + corner, by);
     ctx.stroke();
 
+    // Top-right
     ctx.beginPath();
     ctx.moveTo(bx + bw - corner, by);
     ctx.lineTo(bx + bw);
     ctx.lineTo(bx + bw, by + corner);
     ctx.stroke();
 
+    // Bottom-left
     ctx.beginPath();
     ctx.moveTo(bx, by + bh - corner);
     ctx.lineTo(bx, by + bh);
     ctx.lineTo(bx + corner, by + bh);
     ctx.stroke();
 
+    // Bottom-right
     ctx.beginPath();
     ctx.moveTo(bx + bw - corner, by + bh);
     ctx.lineTo(bx + bw);
     ctx.lineTo(bx + bw, by + bh - corner);
     ctx.stroke();
 
-    // Badge label
+    // Badge tag: 🎯 OCR Focus
     const tag = '🎯 OCR Focus';
     ctx.font = 'bold 11px sans-serif';
-    const tagW = ctx.measureText(tag).width + 8;
-    const tagY = Math.max(16, by - 4);
+    const tagW = ctx.measureText(tag).width + 12;
+    const tagY = Math.max(18, by - 5);
 
-    ctx.fillStyle = 'rgba(18, 18, 20, 0.85)';
-    ctx.fillRect(bx, tagY - 12, tagW, 14);
+    ctx.fillStyle = 'rgba(18, 18, 20, 0.9)';
+    ctx.strokeStyle = '#38bdf8';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    if (typeof ctx.roundRect === 'function') {
+      ctx.roundRect(bx, tagY - 14, tagW, 16, 4);
+    } else {
+      ctx.rect(bx, tagY - 14, tagW, 16);
+    }
+    ctx.fill();
+    ctx.stroke();
+
     ctx.fillStyle = '#38bdf8';
-    ctx.fillText(tag, bx + 4, tagY - 1);
+    ctx.fillText(tag, bx + 6, tagY - 2);
 
     ctx.restore();
   }
@@ -999,8 +1107,8 @@ function updateTraceUI() {
   const guideText = elements.traceGuide?.querySelector('.trace-guide-text');
   if (guideText) {
     guideText.textContent = hasTrace 
-      ? '✓ Text focused! Extract below or trace again' 
-      : '👆 Trace with finger over text to focus OCR';
+      ? '✓ Text focused! Drag again to adjust, or Extract below' 
+      : '👆 Drag a box or circle around text to focus';
   }
   const submitText = elements.btnSubmitCrop?.querySelector('.btn-text');
   if (submitText) {
@@ -1009,9 +1117,11 @@ function updateTraceUI() {
 }
 
 function clearTrace() {
-  traceStrokes = [];
   traceBounds = null;
   currentStroke = [];
+  traceStartPoint = null;
+  isDrawingTrace = false;
+  isCircleGesture = false;
   renderTraceCanvas();
   updateTraceUI();
 }
