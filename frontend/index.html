@@ -64,7 +64,10 @@
         <div class="card crop-card">
           <div class="section-title-bar">
             <h2>Crop Japanese Text</h2>
-            <button id="btnCancelCrop" class="text-btn">Change Photo</button>
+            <div class="section-title-actions">
+              <button type="button" id="btnSettingsCrop" class="icon-btn-compact" title="Settings" aria-label="Settings">⚙️</button>
+              <button id="btnCancelCrop" class="text-btn">Change Photo</button>
+            </div>
           </div>
           
           <div class="cropper-wrapper">
@@ -73,7 +76,10 @@
 
           <!-- Image Enhancement Filters Bar -->
           <div class="filter-toolbar">
-            <span class="filter-label">Filter:</span>
+            <div class="filter-toolbar-header">
+              <span class="filter-label">Image Filter</span>
+              <span class="filter-hint">Enhance text clarity</span>
+            </div>
             <div class="filter-chips" id="filterChips" role="radiogroup" aria-label="Image enhancement filter">
               <button type="button" class="filter-chip active" data-filter="normal" aria-checked="true">Normal</button>
               <button type="button" class="filter-chip" data-filter="contrast" aria-checked="false" title="High contrast for glare/washed out text">Contrast</button>
@@ -83,11 +89,23 @@
             </div>
           </div>
 
-          <div class="crop-toolbar">
-            <button id="btnRotateLeft" class="btn btn-secondary btn-icon" title="Rotate -90° (Shift+R)">↶</button>
-            <button id="btnRotateRight" class="btn btn-secondary btn-icon" title="Rotate +90° (R)">↷</button>
-            <button id="btnResetCrop" class="btn btn-secondary" title="Reset Crop Box">Reset Box</button>
-            <button id="btnSubmitCrop" class="btn btn-primary btn-submit" title="Extract text (Enter)">
+          <!-- Componentized Crop Action Controls -->
+          <div class="crop-controls">
+            <div class="crop-util-toolbar">
+              <button type="button" id="btnRotateLeft" class="btn btn-secondary btn-util" title="Rotate -90° (Shift+R)">
+                <span class="util-icon">↶</span>
+                <span class="util-label">-90°</span>
+              </button>
+              <button type="button" id="btnRotateRight" class="btn btn-secondary btn-util" title="Rotate +90° (R)">
+                <span class="util-icon">↷</span>
+                <span class="util-label">+90°</span>
+              </button>
+              <button type="button" id="btnResetCrop" class="btn btn-secondary btn-util" title="Reset Crop Box">
+                <span class="util-icon">↺</span>
+                <span class="util-label">Reset</span>
+              </button>
+            </div>
+            <button type="button" id="btnSubmitCrop" class="btn btn-primary btn-submit-extract" title="Extract text (Enter)">
               <span class="btn-text">Extract Text ➔</span>
             </button>
           </div>
@@ -114,6 +132,7 @@
             </div>
             <div class="result-actions">
               <button id="btnCopyText" class="btn btn-small btn-secondary" title="Copy text to clipboard">📋 Copy</button>
+              <button type="button" id="btnSettingsResult" class="icon-btn-compact" title="Settings" aria-label="Settings">⚙️</button>
             </div>
           </div>
 
@@ -237,7 +256,7 @@
           <div class="modal-footer">
             <button type="button" id="btnOpenWizardFromSettings" class="btn btn-secondary btn-small">Wizard ➔</button>
             <button type="button" id="btnTestAnki" class="btn btn-secondary">Test Connection</button>
-            <button type="submit" class="btn btn-primary">Save Settings</button>
+            <button type="submit" id="btnSaveSettings" class="btn btn-primary">Save Settings</button>
           </div>
         </form>
       </div>

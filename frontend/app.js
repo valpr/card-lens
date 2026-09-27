@@ -49,6 +49,9 @@ const elements = {
   btnNewCapture: document.getElementById('btnNewCapture'),
 
   btnSettings: document.getElementById('btnSettings'),
+  btnSettingsCrop: document.getElementById('btnSettingsCrop'),
+  btnSettingsResult: document.getElementById('btnSettingsResult'),
+  appHeader: document.querySelector('.app-header'),
   settingsModal: document.getElementById('settingsModal'),
   btnCloseSettings: document.getElementById('btnCloseSettings'),
   modalBackdrop: document.getElementById('modalBackdrop'),
@@ -214,6 +217,17 @@ function switchStage(stageName) {
       stages[key].classList.remove('active');
     }
   });
+
+  // Automatically hide the header when engaging with crop or result stages, restore on capture stage
+  const header = elements.appHeader || document.querySelector('.app-header');
+  if (header) {
+    if (stageName === 'capture') {
+      header.classList.remove('header-hidden');
+    } else {
+      header.classList.add('header-hidden');
+    }
+  }
+
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -574,7 +588,9 @@ function initEventListeners() {
   elements.btnCancelPolling.addEventListener('click', handleCancelPolling);
 
   // Settings Modal Controls
-  elements.btnSettings.addEventListener('click', openSettings);
+  if (elements.btnSettings) elements.btnSettings.addEventListener('click', openSettings);
+  if (elements.btnSettingsCrop) elements.btnSettingsCrop.addEventListener('click', openSettings);
+  if (elements.btnSettingsResult) elements.btnSettingsResult.addEventListener('click', openSettings);
   elements.btnCloseSettings.addEventListener('click', closeSettings);
   elements.modalBackdrop.addEventListener('click', closeSettings);
   elements.settingsForm.addEventListener('submit', saveSettings);
