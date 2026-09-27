@@ -17,7 +17,7 @@ When immersing in Japanese through games (Switch, Steam Deck, PC), manga, visual
 - 📸 **Any Image Source:** Snap a photo of a screen or book, import gallery screenshots, drag-and-drop, or paste directly from your clipboard (`Ctrl+V`).
 - ✂️ **Touch-Friendly Cropper:** Crop directly to the dialogue box with pinch/drag controls, 90° rotation, and offline-vendored Cropper.js.
 - 🎨 **Image Pre-Processing Filters:** Real-time canvas filters (Contrast boost, Sharpen, Invert colors, B&W / Grayscale) with live preview to clarify low-contrast or stylized game text before OCR.
-- 🔍 **Google Lens OCR Backend:** High-accuracy Japanese text recognition powered by `chrome-lens-py` running locally on FastAPI.
+- 🔍 **Google Lens OCR Backend:** High-accuracy Japanese text recognition powered by `chrome-lens-py` running locally on Starlette / ASGI.
 - 📖 **Yomitan-Optimized:** Renders clean, selectable Japanese typography designed specifically for Yomitan's one-tap popup dictionary and card creation.
 - 🤖 **Auto-Attach Mode:** Pre-polls recent notes and automatically detects newly created cards from Yomitan via diff polling, attaching the screenshot seamlessly with a visual progress dock and cancel/attach buttons.
 - 🎴 **1-Tap Anki Attachment:** Manual fallback to upload the cropped image into Anki's media collection and attach it to the latest card via AnkiConnect (`localhost:8765`).
@@ -46,7 +46,7 @@ When immersing in Japanese through games (Switch, Steam Deck, PC), manga, visual
                            │ POST /ocr (Base64)
                            ▼
 ┌────────────────────────────────────────────────────────┐
-│  FastAPI Backend (Termux on Android / Localhost:5050)  │
+│  Starlette Backend (Termux on Android / Localhost:5050)│
 │  • Google Lens OCR via chrome-lens-py                  │
 │  • Returns: { "text": "冒険の始まり..." }               │
 └──────────────────────────┬─────────────────────────────┘
@@ -218,7 +218,7 @@ You can also re-run the wizard or adjust fields anytime by tapping the **⚙️ 
 
 ## 🧪 Testing & Validation
 
-The codebase includes automated unit and integration tests covering the FastAPI server, OCR pipeline, static assets, and AnkiConnect client:
+The codebase includes automated unit and integration tests covering the Starlette ASGI server, OCR pipeline, static assets, and AnkiConnect client:
 
 ```bash
 # Run Python backend & OCR integration tests
@@ -240,7 +240,7 @@ card-lens/
 ├── .github/
 │   └── workflows/
 │       └── ci.yml            # Automated CI workflow
-├── main.py                   # FastAPI backend & OCR endpoint (POST /ocr)
+├── main.py                   # Starlette ASGI backend & OCR endpoint (POST /ocr)
 ├── requirements.txt          # Python dependencies
 ├── setup_termux.sh           # Automated Termux installation script (Port 5050)
 ├── test_ankiconnect.sh       # Bash verification script for AnkiConnect

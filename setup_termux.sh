@@ -32,7 +32,8 @@ fi
 INSTALL_DIR="$(pwd)"
 
 if [ -d ".git" ]; then
-  git pull --ff-only 2>/dev/null || true
+  git fetch origin main 2>/dev/null || true
+  git reset --hard origin/main 2>/dev/null || git pull --ff-only 2>/dev/null || true
 fi
 
 # 4. Set up Python virtual environment & install dependencies
