@@ -302,6 +302,14 @@ async function runTests() {
   assert.ok(mobileMsg.includes('Cannot connect to AnkiConnect'));
   console.log('✔ Test 2.15: Platform-aware connection error messages passed');
 
+  // Test 16: isMobileDevice platform detection
+  assert.strictEqual(window.AnkiConnect.isMobileDevice('Mozilla/5.0 (Linux; Android 14; Pixel 9 Pro) AppleWebKit/537.36'), true);
+  assert.strictEqual(window.AnkiConnect.isMobileDevice('Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)'), true);
+  assert.strictEqual(window.AnkiConnect.isMobileDevice('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0.0.0'), false);
+  assert.strictEqual(window.AnkiConnect.isMobileDevice('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15'), false);
+  assert.strictEqual(window.AnkiConnect.isMobileDevice('Mozilla/5.0 (X11; Linux x86_64; rv:125.0) Gecko/20100101 Firefox/125.0'), false);
+  console.log('✔ Test 2.16: isMobileDevice device detection passed');
+
   console.log('\nAll AnkiConnect unit tests passed successfully!');
 }
 

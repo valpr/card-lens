@@ -211,7 +211,7 @@
         <div class="modal-header">
           <div style="display: flex; align-items: center; gap: 8px;">
             <h2 id="settingsModalTitle">Settings</h2>
-            <span class="badge badge-subtle">v0.4.3</span>
+            <span class="badge badge-subtle">v0.4.4</span>
           </div>
           <button id="btnCloseSettings" class="icon-btn" aria-label="Close settings">✕</button>
         </div>
@@ -257,7 +257,7 @@
               <input type="url" id="inputAnkiUrl" value="http://localhost:8765" placeholder="http://localhost:8765" required>
               <button type="button" id="btnFetchAnkiData" class="btn btn-secondary btn-small" title="Load decks & fields from Anki">Load</button>
             </div>
-            <small class="form-hint">Standard port for Anki Desktop (AnkiConnect add-on) or AnkiConnect Android</small>
+            <small class="form-hint" id="ankiUrlHint">Standard port for Anki Desktop (AnkiConnect add-on) or AnkiConnect Android</small>
           </div>
 
           <div class="form-group">
@@ -345,10 +345,10 @@
           <button id="btnSkipWizard" class="icon-btn" title="Skip setup" aria-label="Skip">✕</button>
         </div>
 
-        <p class="wizard-subtitle">Choose your setup mode to start mining cards in seconds:</p>
+        <p class="wizard-subtitle" id="wizardSubtitle">Choose your setup mode to start mining cards in seconds:</p>
 
         <!-- Platform Switcher Tabs -->
-        <div class="wizard-platform-tabs" role="tablist">
+        <div class="wizard-platform-tabs" id="wizardPlatformTabs" role="tablist">
           <button type="button" class="wizard-tab-btn active" id="wizardTabDesktop" role="tab" aria-selected="true">
             💻 PC / Desktop (Anki)
           </button>
@@ -576,7 +576,7 @@
   </div>
 
   <script src="/vendor/cropperjs/cropper.min.js"></script>
-  <script src="/ankiconnect.js?v=0.4.3"></script>
-  <script src="/app.js?v=0.4.3"></script>
+  <script src="/ankiconnect.js?v=0.4.4"></script>
+  <script src="/app.js?v=0.4.4"></script>
 </body>
 </html>

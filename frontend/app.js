@@ -86,6 +86,7 @@ const elements = {
   settingsPcHelper: document.getElementById('settingsPcHelper'),
   btnSettingsCopyAddonCode: document.getElementById('btnSettingsCopyAddonCode'),
   inputAnkiUrl: document.getElementById('inputAnkiUrl'),
+  ankiUrlHint: document.getElementById('ankiUrlHint'),
   inputAnkiDeck: document.getElementById('inputAnkiDeck'),
   inputAnkiField: document.getElementById('inputAnkiField'),
   inputFormatTemplate: document.getElementById('inputFormatTemplate'),
@@ -106,6 +107,8 @@ const elements = {
   // Setup Wizard Tabs & Panels
   setupWizardModal: document.getElementById('setupWizardModal'),
   wizardBackdrop: document.getElementById('wizardBackdrop'),
+  wizardSubtitle: document.getElementById('wizardSubtitle'),
+  wizardPlatformTabs: document.getElementById('wizardPlatformTabs'),
   btnSkipWizard: document.getElementById('btnSkipWizard'),
   btnSkipWizardBottom: document.getElementById('btnSkipWizardBottom'),
   wizardTabDesktop: document.getElementById('wizardTabDesktop'),
@@ -1762,26 +1765,39 @@ function handleWorkflowModeChange(mode) {
 
 function applyWorkflowModeUI(mode) {
   const isClipboard = mode === 'clipboard';
+  const isMobile = AnkiConnect.isMobileDevice();
+
   if (elements.selectWorkflowMode) {
     elements.selectWorkflowMode.value = mode;
   }
   if (elements.workflowModeHint) {
     elements.workflowModeHint.textContent = isClipboard
-      ? 'Clipboard mode: 1-click copy cropped images (I) and text to paste (Ctrl+V) directly into Anki Desktop.'
-      : 'AnkiConnect mode: Automatically attaches cropped images to newly mined cards in Anki.';
+      ? (isMobile ? 'Clipboard mode: Copy cropped images and text to paste manually into your notes.' : 'Clipboard mode: 1-click copy cropped images (I) and text to paste (Ctrl+V) directly into Anki Desktop.')
+      : (isMobile ? 'AnkiConnect mode: Automatically attaches cropped images to newly mined cards in AnkiDroid.' : 'AnkiConnect mode: Automatically attaches cropped images to newly mined cards in Anki.');
   }
   if (elements.btnCopyCropImage && elements.btnAttachAnki) {
     if (isClipboard) {
       elements.btnCopyCropImage.className = 'btn btn-accent btn-large';
       elements.btnAttachAnki.className = 'btn btn-secondary';
+      elements.btnCopyCropImage.classList.remove('hidden');
       if (elements.miningTip && !isEditingOcr) {
-        elements.miningTip.innerHTML = '💡 <strong>Clipboard mode:</strong> Look up words above with Yomitan. Tap <strong>📋 Copy Image (I)</strong> or <strong>Copy Text</strong> and paste (<code>Ctrl+V</code>) into Anki Desktop!';
+        elements.miningTip.innerHTML = isMobile
+          ? '💡 <strong>Clipboard mode:</strong> Look up words above with Yomitan. Tap <strong>📋 Copy Image</strong> or <strong>Copy Text</strong> and paste into AnkiDroid!'
+          : '💡 <strong>Clipboard mode:</strong> Look up words above with Yomitan. Tap <strong>📋 Copy Image (I)</strong> or <strong>Copy Text</strong> and paste (<code>Ctrl+V</code>) into Anki Desktop!';
       }
     } else {
       elements.btnAttachAnki.className = 'btn btn-accent btn-large';
       elements.btnCopyCropImage.className = 'btn btn-secondary';
+      // On mobile in AnkiConnect mode, hide Copy Image to keep dock slim with 3 essential buttons
+      if (isMobile) {
+        elements.btnCopyCropImage.classList.add('hidden');
+      } else {
+        elements.btnCopyCropImage.classList.remove('hidden');
+      }
       if (elements.miningTip && !isEditingOcr) {
-        elements.miningTip.innerHTML = '💡 <strong>Mining step:</strong> Look up words above with Yomitan / dictionary extension to add an Anki card. Then tap <strong>Attach Image</strong> below (or <strong>Copy Image</strong> for clipboard).';
+        elements.miningTip.innerHTML = isMobile
+          ? '💡 <strong>Mining step:</strong> Look up words above with Yomitan / dictionary extension to add an Anki card. Then tap <strong>Attach Image</strong> below.'
+          : '💡 <strong>Mining step:</strong> Look up words above with Yomitan / dictionary extension to add an Anki card. Then tap <strong>Attach Image</strong> below (or <strong>Copy Image</strong> for clipboard).';
       }
     }
   }
@@ -1859,6 +1875,15 @@ function loadSavedSettings() {
 
 function openSettings() {
   loadSavedSettings();
+  const isMobile = AnkiConnect.isMobileDevice();
+  if (elements.settingsPcHelper) {
+    elements.settingsPcHelper.classList.toggle('hidden', isMobile);
+  }
+  if (elements.ankiUrlHint) {
+    elements.ankiUrlHint.textContent = isMobile
+      ? 'Standard port for AnkiConnect Android'
+      : 'Standard port for Anki Desktop (AnkiConnect add-on) or AnkiConnect Android';
+  }
   elements.settingsModal.classList.remove('hidden');
   document.body.classList.add('modal-open');
   elements.settingsModal.scrollTop = 0;
@@ -1943,6 +1968,14 @@ function openSetupWizard() {
 
   // Auto-detect platform and default to corresponding tab
   const isMobile = AnkiConnect.isMobileDevice();
+  if (elements.wizardPlatformTabs) {
+    elements.wizardPlatformTabs.classList.toggle('hidden', isMobile);
+  }
+  if (elements.wizardSubtitle) {
+    elements.wizardSubtitle.textContent = isMobile
+      ? 'Connect to AnkiDroid to automatically attach cropped images to your mined cards:'
+      : 'Choose your setup mode to start mining cards in seconds:';
+  }
   switchWizardPlatform(isMobile ? 'mobile' : 'desktop');
 
   loadWizardDecksAndFields();
