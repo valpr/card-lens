@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#18181b">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="description" content="Instant image-to-Anki card miner with Google Lens OCR">
+  
+  <title>CardLens</title>
+  
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" type="image/png" href="/icons/favicon.png">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+  
+  <link rel="stylesheet" href="/vendor/cropperjs/cropper.min.css">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="header-brand">
+        <div class="brand-badge">CL</div>
+        <h1>CardLens</h1>
+      </div>
+      <div class="header-actions">
+        <button id="btnSettings" class="icon-btn" title="Settings" aria-label="Settings">
+          ⚙️
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+      <!-- Stage 1: Capture / Upload -->
+      <section id="captureSection" class="stage-section active">
+        <div class="card upload-card">
+          <div class="upload-icon">📸</div>
+          <h2>Snap or Upload Image</h2>
+          <p class="subtitle">Take a photo, pick any screenshot or manga image, or paste from clipboard</p>
+
+          <div class="button-group">
+            <label class="btn btn-primary btn-large">
+              <span>📸 Camera</span>
+              <input type="file" id="cameraInput" accept="image/*" capture="environment" class="visually-hidden">
+            </label>
+
+            <label class="btn btn-secondary btn-large">
+              <span>🖼️ Gallery / Screenshot</span>
+              <input type="file" id="galleryInput" accept="image/*" class="visually-hidden">
+            </label>
+          </div>
+
+          <div class="drop-zone" id="dropZone">
+            <span class="drop-text">Or drag & drop / paste image here</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Stage 2: Crop & Adjust -->
+      <section id="cropSection" class="stage-section">
+        <div class="card crop-card">
+          <div class="section-title-bar">
+            <h2>Crop Japanese Text</h2>
+            <button id="btnCancelCrop" class="text-btn">Change Photo</button>
+          </div>
+          
+          <div class="cropper-wrapper">
+            <img id="imageToCrop" alt="Source screenshot to crop" src="">
+          </div>
+
+          <!-- Image Enhancement Filters Bar -->
+          <div class="filter-toolbar">
+            <span class="filter-label">Filter:</span>
+            <div class="filter-chips" id="filterChips" role="radiogroup" aria-label="Image enhancement filter">
+              <button type="button" class="filter-chip active" data-filter="normal" aria-checked="true">Normal</button>
+              <button type="button" class="filter-chip" data-filter="contrast" aria-checked="false" title="High contrast for glare/washed out text">Contrast</button>
+              <button type="button" class="filter-chip" data-filter="sharpen" aria-checked="false" title="Convolution sharpening for tiny kanji">Sharpen</button>
+              <button type="button" class="filter-chip" data-filter="invert" aria-checked="false" title="Invert colors for dark background text">Invert</button>
+              <button type="button" class="filter-chip" data-filter="grayscale" aria-checked="false" title="Black and white monochrome">B&amp;W</button>
+            </div>
+          </div>
+
+          <div class="crop-toolbar">
+            <button id="btnRotateLeft" class="btn btn-secondary btn-icon" title="Rotate -90° (Shift+R)">↶</button>
+            <button id="btnRotateRight" class="btn btn-secondary btn-icon" title="Rotate +90° (R)">↷</button>
+            <button id="btnResetCrop" class="btn btn-secondary" title="Reset Crop Box">Reset Box</button>
+            <button id="btnSubmitCrop" class="btn btn-primary btn-submit" title="Extract text (Enter)">
+              <span class="btn-text">Extract Text ➔</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Stage 3: OCR Results & Yomitan Mining -->
+      <section id="resultSection" class="stage-section">
+        <!-- Loading State -->
+        <div id="loadingIndicator" class="card loading-card hidden">
+          <div class="spinner"></div>
+          <p id="loadingMessage">Extracting text via Google Lens...</p>
+        </div>
+
+        <!-- OCR Text Display -->
+        <div id="ocrCard" class="card result-card hidden">
+          <div class="result-header">
+            <div class="result-title-group">
+              <span class="badge">OCR Output</span>
+              <span id="detectedLangBadge" class="badge badge-subtle">JA</span>
+              <button type="button" id="btnToggleAutoAttach" class="badge badge-toggle" title="Toggle background card polling">
+                <span class="toggle-dot"></span> Auto-Attach: <strong id="autoAttachStateText">OFF</strong>
+              </button>
+            </div>
+            <div class="result-actions">
+              <button id="btnCopyText" class="btn btn-small btn-secondary" title="Copy text to clipboard">📋 Copy</button>
+            </div>
+          </div>
+
+          <!-- Selectable Japanese text container for Yomitan -->
+          <div class="ocr-text-container">
+            <p id="ocrText" class="ocr-text" tabindex="0" lang="ja"></p>
+          </div>
+
+          <!-- Auto-Attach Polling Indicator Banner -->
+          <div id="pollingBanner" class="polling-banner hidden">
+            <div class="polling-pulse-dot"></div>
+            <div class="polling-info">
+              <span class="polling-title">Auto-attaching to next Anki card...</span>
+              <span id="pollingCountdown" class="polling-sub">Tap word in Yomitan to create card (45s left)</span>
+            </div>
+            <button type="button" id="btnCancelPolling" class="btn btn-secondary btn-small">Cancel</button>
+          </div>
+
+          <!-- Card Mining Instructions -->
+          <div class="mining-tip">
+            💡 <strong>Mining step:</strong> Tap or drag words above with Yomitan to add an Anki card. Then tap <strong>Attach Image</strong> below.
+          </div>
+
+          <!-- Cropped Image Preview & Attach Action -->
+          <div class="action-dock">
+            <div class="crop-preview-wrapper">
+              <img id="cropPreviewImg" class="crop-preview-thumbnail" alt="Cropped image preview" src="">
+            </div>
+            
+            <div class="dock-buttons">
+              <button id="btnAttachAnki" class="btn btn-accent btn-large" title="Attach image to card (A)">
+                <span class="btn-text">📎 Attach Image to Card</span>
+              </button>
+              <button id="btnNewCapture" class="btn btn-secondary" title="New Capture (N)">
+                <span>🔄 New Capture</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="settingsModalTitle">
+      <div class="modal-backdrop" id="modalBackdrop"></div>
+      <div class="modal-content card">
+        <div class="modal-header">
+          <h2 id="settingsModalTitle">Settings</h2>
+          <button id="btnCloseSettings" class="icon-btn" aria-label="Close settings">✕</button>
+        </div>
+
+        <!-- Quick Import / Auto Detect Toolbar -->
+        <div class="quick-tools-box">
+          <div class="quick-tools-label">⚡ Fast Setup Helpers:</div>
+          <div class="quick-tools-buttons">
+            <label class="btn btn-secondary btn-small" title="Import exported Yomitan JSON settings">
+              <span>📁 Import Yomitan JSON</span>
+              <input type="file" id="settingsYomitanInput" accept=".json" class="visually-hidden">
+            </label>
+            <button type="button" id="btnSettingsAutoDetect" class="btn btn-secondary btn-small" title="Auto-detect from latest Anki card">
+              ✨ Auto-Detect Card
+            </button>
+          </div>
+        </div>
+
+        <form id="settingsForm" class="settings-form">
+          <div class="form-group">
+            <label for="inputAnkiUrl">AnkiConnect URL</label>
+            <div class="input-with-button">
+              <input type="url" id="inputAnkiUrl" value="http://localhost:8765" placeholder="http://localhost:8765" required>
+              <button type="button" id="btnFetchAnkiData" class="btn btn-secondary btn-small" title="Load decks & fields from Anki">Load</button>
+            </div>
+            <small class="form-hint">Standard port for AnkiConnect Android</small>
+          </div>
+
+          <div class="form-group">
+            <label for="inputAnkiDeck">Target Deck Name</label>
+            <input type="text" id="inputAnkiDeck" list="deckList" value="Mining" placeholder="Mining">
+            <datalist id="deckList"></datalist>
+            <small class="form-hint">Deck where Yomitan cards are added</small>
+          </div>
+
+          <div class="form-group">
+            <label for="inputAnkiField">Picture Field Name</label>
+            <input type="text" id="inputAnkiField" list="fieldList" value="Picture" placeholder="Picture">
+            <datalist id="fieldList"></datalist>
+            <small class="form-hint">Field on your note type (e.g. Picture, Image, Screenshot)</small>
+          </div>
+
+          <div class="form-group">
+            <label for="inputFormatTemplate">Card Image Field Template</label>
+            <input type="text" id="inputFormatTemplate" value='<img src="{filename}">' placeholder='<img src="{filename}">'>
+            <small class="form-hint">HTML template for card field. Use <code>{filename}</code> for image file name.</small>
+          </div>
+
+          <div class="form-group">
+            <label for="selectOcrLang">OCR Language</label>
+            <select id="selectOcrLang">
+              <option value="ja" selected>Japanese (ja)</option>
+              <option value="en">English (en)</option>
+              <option value="">Auto-detect</option>
+            </select>
+          </div>
+
+          <div class="form-group form-checkbox-group">
+            <label class="checkbox-container" for="inputAutoAttach">
+              <input type="checkbox" id="inputAutoAttach">
+              <span class="checkbox-label">Enable Auto-Attach mode by default</span>
+            </label>
+            <small class="form-hint">Automatically polls for your newly mined Yomitan card and attaches the crop.</small>
+          </div>
+
+          <div class="form-group form-checkbox-group">
+            <label class="checkbox-container" for="inputSoundFeedback">
+              <input type="checkbox" id="inputSoundFeedback" checked>
+              <span class="checkbox-label">Sound feedback (clicks &amp; beeps)</span>
+            </label>
+            <small class="form-hint">Play subtle audio clicks when cropping and chimes when attaching cards.</small>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" id="btnOpenWizardFromSettings" class="btn btn-secondary btn-small">Wizard ➔</button>
+            <button type="button" id="btnTestAnki" class="btn btn-secondary">Test Connection</button>
+            <button type="submit" class="btn btn-primary">Save Settings</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- First-Time User Setup Wizard Modal -->
+    <div id="setupWizardModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="wizardTitle">
+      <div class="modal-backdrop" id="wizardBackdrop"></div>
+      <div class="modal-content card wizard-card">
+        <div class="modal-header">
+          <div>
+            <span class="badge">Initial Setup</span>
+            <h2 id="wizardTitle">Connect to Anki</h2>
+          </div>
+          <button id="btnSkipWizard" class="icon-btn" title="Skip setup" aria-label="Skip">✕</button>
+        </div>
+
+        <p class="wizard-subtitle">Choose how you'd like to configure your Anki deck and picture fields:</p>
+
+        <!-- Option A: Yomitan Settings Import -->
+        <div class="wizard-card-option" id="wizardOptionYomitan">
+          <div class="option-header">
+            <span class="option-badge">Recommended</span>
+            <h3>⚡ Option 1: Import Yomitan Settings</h3>
+          </div>
+          <p class="option-desc">Export your settings in Yomitan (<em>Settings → Backup → Export Settings</em>) and upload the file below:</p>
+          
+          <label class="wizard-file-drop" id="wizardDropZone">
+            <div class="drop-content">
+              <span class="drop-icon">📁</span>
+              <span class="drop-prompt">Choose or drop <strong>yomitan-settings.json</strong></span>
+            </div>
+            <input type="file" id="wizardYomitanFileInput" accept=".json" class="visually-hidden">
+          </label>
+
+          <!-- Yomitan Preview Confirmation Box -->
+          <div id="yomitanPreviewBox" class="preview-box hidden">
+            <div class="preview-title">✓ Detected Yomitan Settings — Please Review & Confirm:</div>
+            <div class="preview-grid">
+              <div><strong>Deck:</strong> <span id="yomitanPreviewDeck">-</span></div>
+              <div><strong>Note Type:</strong> <span id="yomitanPreviewModel">-</span></div>
+              <div class="preview-field-row" style="grid-column: span 2; margin-top: 4px;">
+                <label for="yomitanPreviewFieldSelect" style="display: block; font-size: 0.8rem; margin-bottom: 4px; color: var(--text-secondary);">
+                  <strong>Picture Field:</strong> (Review or change field)
+                </label>
+                <select id="yomitanPreviewFieldSelect" style="width: 100%; font-size: 0.85rem; padding: 6px 8px;"></select>
+              </div>
+            </div>
+            <button type="button" id="btnApplyYomitanConfig" class="btn btn-accent btn-small" style="margin-top: 12px; width: 100%;">
+              ✓ Confirm & Apply Settings
+            </button>
+          </div>
+        </div>
+
+        <div class="wizard-divider">
+          <span>OR</span>
+        </div>
+
+        <!-- Option B: Anki Live Detection & Selectors -->
+        <div class="wizard-card-option" id="wizardOptionAnki">
+          <div class="option-header">
+            <h3>🔌 Option 2: Live Anki Detection</h3>
+          </div>
+          <p class="option-desc">Connect directly to AnkiConnect Android (`http://localhost:8765`):</p>
+
+          <div class="wizard-actions">
+            <button type="button" id="btnWizardAutoDetect" class="btn btn-secondary btn-small" style="width: 100%; margin-bottom: 10px;">
+              ✨ Auto-Detect from Recent Anki Card
+            </button>
+          </div>
+
+          <div class="wizard-fields-grid">
+            <div class="form-group">
+              <label for="wizardDeckSelect">Deck:</label>
+              <select id="wizardDeckSelect">
+                <option value="Mining">Mining (Default)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="wizardFieldSelect">Picture Field:</label>
+              <select id="wizardFieldSelect">
+                <option value="Picture">Picture (Default)</option>
+              </select>
+            </div>
+          </div>
+
+          <button type="button" id="btnApplyAnkiDiscovery" class="btn btn-primary btn-small" style="width: 100%; margin-top: 6px;">
+            Save & Finish Setup
+          </button>
+        </div>
+
+        <div class="wizard-footer">
+          <button type="button" id="btnSkipWizardBottom" class="text-btn">Use Defaults (Mining / Picture) & Close</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Notification Toast Container -->
+    <div id="toastContainer" class="toast-container" aria-live="polite"></div>
+  </div>
+
+  <script src="/vendor/cropperjs/cropper.min.js"></script>
+  <script src="/ankiconnect.js"></script>
+  <script src="/app.js"></script>
+</body>
+</html>
