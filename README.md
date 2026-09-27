@@ -1,7 +1,7 @@
 # CardLens 🔍🎴
 
 > **Turn any image, screenshot, or manga panel into rich Anki cards in seconds.**  
-> A lightweight, local-first companion app running on-device via Termux (or desktop) that combines Google Lens OCR, Yomitan dictionary lookups, and 1-tap Anki card image attachment.
+> A lightweight, local-first companion app running on-device via Termux (or desktop) that combines Google Lens OCR, Yomitan dictionary lookups, live image pre-processing filters, and 1-tap or automated Anki card image attachment.
 
 ---
 
@@ -16,9 +16,14 @@ When immersing in Japanese through games (Switch, Steam Deck, PC), manga, visual
 **CardLens automates the entire visual mining loop without external servers or subscriptions:**
 - 📸 **Any Image Source:** Snap a photo of a screen or book, import gallery screenshots, drag-and-drop, or paste directly from your clipboard (`Ctrl+V`).
 - ✂️ **Touch-Friendly Cropper:** Crop directly to the dialogue box with pinch/drag controls, 90° rotation, and offline-vendored Cropper.js.
+- 🎨 **Image Pre-Processing Filters:** Real-time canvas filters (Contrast boost, Sharpen, Invert colors, B&W / Grayscale) with live preview to clarify low-contrast or stylized game text before OCR.
 - 🔍 **Google Lens OCR Backend:** High-accuracy Japanese text recognition powered by `chrome-lens-py` running locally on FastAPI.
 - 📖 **Yomitan-Optimized:** Renders clean, selectable Japanese typography designed specifically for Yomitan's one-tap popup dictionary and card creation.
-- 🎴 **One-Tap Anki Attachment:** Tapping **"Attach Image"** uploads the cropped image into Anki's media collection and updates the latest card via AnkiConnect Android (`localhost:8765`).
+- 🤖 **Auto-Attach Mode:** Pre-polls recent notes and automatically detects newly created cards from Yomitan via diff polling, attaching the screenshot seamlessly with a visual progress dock and cancel/attach buttons.
+- 🎴 **1-Tap Anki Attachment:** Manual fallback to upload the cropped image into Anki's media collection and attach it to the latest card via AnkiConnect (`localhost:8765`).
+- 🔊 **Synthetic Audio Cues:** Zero-dependency Web Audio clicks, OCR blips, and card attach chimes (with a toggle in Settings).
+- ⌨️ **Desktop Shortcuts:** Full keyboard workflow (`Enter` to crop, `R`/`Shift+R` to rotate, `A` to attach, `N` for new capture, `Esc` to cancel).
+- 📝 **Custom Field Formatting:** Customize the image tag template (e.g. `<img src="{filename}">` or custom wrapper divs) in Settings.
 - ⚡ **1-Click Yomitan Setup:** Drop your exported Yomitan settings JSON to auto-configure your target deck and picture field in one click!
 - 🛡️ **Zero Port Conflicts:** Serves on port `5050` by default, avoiding collision with Android Wireless ADB (`port 5555`).
 - 📱 **Installable PWA:** Installs directly to your Android home screen as a standalone, fullscreen app with offline-cached app shell.
@@ -35,7 +40,8 @@ When immersing in Japanese through games (Switch, Steam Deck, PC), manga, visual
 │  CardLens PWA (http://localhost:5050)                  │
 │  1. Load image (Camera, Gallery, or Clipboard Paste)   │
 │  2. Crop text region with touch/mouse controls         │
-│  3. Tap "Extract Text"                                 │
+│  3. (Optional) Apply filters: Contrast/Sharpen/Invert  │
+│  4. Tap "Extract Text"                                 │
 └──────────────────────────┬─────────────────────────────┘
                            │ POST /ocr (Base64)
                            ▼
@@ -47,7 +53,7 @@ When immersing in Japanese through games (Switch, Steam Deck, PC), manga, visual
                            │
                            ▼
 ┌────────────────────────────────────────────────────────┐
-│  Firefox Android (Yomitan Extension)                   │
+│  Firefox Android / Browser (Yomitan Extension)         │
 │  • Tap Japanese word in OCR text box                   │
 │  • Yomitan pop-up shows definition + audio             │
 │  • Tap [+] to create Anki card                         │
@@ -56,7 +62,8 @@ When immersing in Japanese through games (Switch, Steam Deck, PC), manga, visual
                            ▼
 ┌────────────────────────────────────────────────────────┐
 │  CardLens PWA                                          │
-│  • Tap "Attach Image to Card"                          │
+│  • Auto-Attach: Polls diff & attaches automatically    │
+│    OR Manual: Tap "Attach Image to Card"               │
 │  • storeMediaFile -> findNotes -> updateNoteFields     │
 │  • Cropped screenshot attached to note's Picture field!│
 └────────────────────────────────────────────────────────┘
@@ -80,10 +87,11 @@ For the mobile workflow, you will need an Android device with:
 
 1. Open Termux and run the setup script:
    ```bash
-   curl -sL https://raw.githubusercontent.com/YOUR_REPO/cardlens/main/setup_termux.sh | bash
+   curl -sL https://raw.githubusercontent.com/valpr/card-lens/main/setup_termux.sh | bash
    ```
    *Or clone the repository and run:*
    ```bash
+   git clone https://github.com/valpr/card-lens.git cardlens
    cd cardlens
    bash setup_termux.sh
    ```
@@ -107,8 +115,8 @@ You can also run CardLens on your computer to mine cards from PC games, emulator
 
 1. **Clone & Install Dependencies:**
    ```bash
-   git clone https://github.com/YOUR_REPO/cardlens.git
-   cd cardlens
+   git clone https://github.com/valpr/card-lens.git
+   cd card-lens
    pip install -r requirements.txt
    ```
 
@@ -164,18 +172,33 @@ You can also re-run the wizard or adjust fields anytime by tapping the **⚙️ 
    - **Method A (Camera):** Tap **Camera** and take a quick photo of your Switch screen, TV, or physical manga.
    - **Method B (Gallery / Screenshot):** Transfer a screenshot or select from your gallery, then tap **Gallery**.
    - **Method C (Clipboard Paste):** Press your screenshot hotkey (e.g. `Win+Shift+S`) and press `Ctrl+V` in CardLens.
-2. **Crop:**
+2. **Crop & Enhance:**
    - Drag and pinch the crop box around the dialogue box or text bubble.
-   - Tap **"Extract Text ➔"**.
+   - *(Optional)* Tap a filter chip (`Contrast`, `Sharpen`, `Invert`, or `B&W`) to boost text readability.
+   - Tap **"Extract Text ➔"** (or press `Enter`).
 3. **Mine with Yomitan:**
-   - The recognized Japanese text renders in large, selectable text.
+   - The recognized Japanese text renders in large, selectable typography.
    - Tap on any unfamiliar word. Yomitan's popup will display definitions, readings, and pitch accent.
-   - Tap the green **`+`** button in Yomitan to add the note to AnkiDroid.
+   - Tap the green **`+`** button in Yomitan to add the note to Anki.
 4. **Attach Image:**
-   - Tap **"📎 Attach Image to Card"**.
-   - CardLens uploads the cropped image into Anki's media database and attaches it directly to the card you just created!
+   - **Auto-Attach Mode:** If enabled, CardLens automatically detects the new card within 1–2 seconds and attaches the image with a subtle completion chime!
+   - **Manual Mode:** Tap **"📎 Attach Image to Card"** (or press `A`) to attach the image to your newest card.
 5. **Repeat:**
-   - Tap **"🔄 New Capture"** to jump straight back to capturing your next sentence.
+   - Tap **"🔄 New Capture"** (or press `N`) to jump straight back to capturing your next sentence.
+
+---
+
+## ⌨️ Desktop Keyboard Shortcuts
+
+| Shortcut | Action |
+|---|---|
+| `Enter` | Crop & Extract Text |
+| `R` | Rotate Image 90° Clockwise |
+| `Shift + R` | Rotate Image 90° Counter-Clockwise |
+| `A` | Attach Cropped Image to Card |
+| `N` | Start New Capture |
+| `Escape` | Close Modal / Cancel Auto-Attach Polling |
+| `Ctrl + V` | Paste Image from Clipboard |
 
 ---
 
@@ -199,21 +222,24 @@ bash test_ankiconnect.sh
 ## 📁 Project Structure
 
 ```text
-cardlens/
+card-lens/
+├── .github/
+│   └── workflows/
+│       └── ci.yml            # Automated CI workflow
 ├── main.py                   # FastAPI backend & OCR endpoint (POST /ocr)
 ├── requirements.txt          # Python dependencies
 ├── setup_termux.sh           # Automated Termux installation script (Port 5050)
 ├── test_ankiconnect.sh       # Bash verification script for AnkiConnect
-├── milestones.md             # Implementation milestones & test specifications
-├── mobile_image_to_anki_architecture_plan.md # Architectural blueprint
+├── LICENSE                   # BSD 3-Clause License
+├── README.md                 # Project documentation & user guide
 ├── tests/
 │   ├── test_api.py           # Backend API unit tests & static mount validation
 │   └── test_ankiconnect.mjs  # AnkiConnect JS client unit tests
 └── frontend/
     ├── index.html            # PWA single-page interface
     ├── styles.css            # Dark OLED console styling
-    ├── app.js                # UI controller, camera capture & OCR handling
-    ├── ankiconnect.js        # AnkiConnect API client module
+    ├── app.js                # UI controller, camera capture, filters & audio cues
+    ├── ankiconnect.js        # AnkiConnect API client module & auto-attach polling
     ├── manifest.json         # PWA web app manifest (CardLens)
     ├── sw.js                 # Service Worker (app shell offline caching)
     ├── icons/                # PWA app icons (192x192, 512x512, favicon)
@@ -242,12 +268,18 @@ The backend uses `chrome-lens-py` to interface with Google Lens. If the upstream
 <details>
 <summary><strong>Q: The image was attached to the wrong field or note.</strong></summary>
 
-- By default, CardLens searches for the most recently added card in your configured deck (`deck:"Mining" added:1`). Always tap **"Attach Image"** right after creating your card with Yomitan.
+- By default, CardLens searches for the most recently added card in your configured deck (`deck:"Mining" added:1`). Always tap **"Attach Image"** (or let Auto-Attach run) right after creating your card with Yomitan.
 - In Settings or the Setup Wizard, ensure **Picture Field Name** matches your note type's picture field (e.g. `Picture`, `Image`, or `Screenshot`).
+</details>
+
+<details>
+<summary><strong>Q: Can I customize how the image tag is saved into the card?</strong></summary>
+
+Yes! In **⚙️ Settings → Image Field Template**, you can change `<img src="{filename}">` to any custom HTML format (e.g. `<div class="screenshot"><img src="{filename}"></div>`).
 </details>
 
 ---
 
 ## 📄 License
 
-MIT License. Designed with ❤️ for Japanese language learners and immersion miners.
+BSD 3-Clause License. See [LICENSE](LICENSE) for details. Designed with ❤️ for Japanese language learners and immersion miners.
