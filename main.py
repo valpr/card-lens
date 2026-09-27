@@ -24,6 +24,18 @@ async def lifespan(app: Starlette):
     logger.info("Initializing LensAPI client...")
     lens = LensAPI()
     app.state.lens = lens
+
+    port = os.environ.get("PORT", "5050")
+    print(
+        f"\n"
+        f"================================================\n"
+        f"  CardLens 🔍🎴 Server is running!\n"
+        f"  Open in browser: http://localhost:{port}\n"
+        f"  Local address:   http://127.0.0.1:{port}\n"
+        f"================================================\n",
+        flush=True,
+    )
+
     yield
     logger.info("Closing LensAPI client...")
     try:
@@ -148,3 +160,12 @@ app = Starlette(
     middleware=middleware,
     lifespan=lifespan,
 )
+
+
+if __name__ == "__main__":
+    import uvicorn
+
+    port = int(os.environ.get("PORT", 5050))
+    host = os.environ.get("HOST", "0.0.0.0")
+    uvicorn.run("main:app", host=host, port=port, reload=False)
+

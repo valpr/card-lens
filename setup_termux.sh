@@ -55,12 +55,13 @@ fi
 
 # 5. Create CLI command & Termux:Widget shortcut
 echo "[5/5] Setting up 'cardlens' command and Termux:Widget shortcut..."
+chmod +x "$INSTALL_DIR/run.sh"
+
 PREFIX="${PREFIX:-/data/data/com.termux/files/usr}"
 if [ -d "$PREFIX/bin" ]; then
   cat > "$PREFIX/bin/cardlens" << SCRIPT
 #!/data/data/com.termux/files/usr/bin/bash
-cd "$INSTALL_DIR"
-exec "$RUN_UVICORN" main:app --host 0.0.0.0 --port 5050 "\$@"
+exec "$INSTALL_DIR/run.sh" "\$@"
 SCRIPT
   chmod +x "$PREFIX/bin/cardlens"
 fi
@@ -68,8 +69,7 @@ fi
 mkdir -p ~/.shortcuts
 cat > ~/.shortcuts/CardLens.sh << SCRIPT
 #!/data/data/com.termux/files/usr/bin/bash
-cd "$INSTALL_DIR"
-exec "$RUN_UVICORN" main:app --host 0.0.0.0 --port 5050
+exec "$INSTALL_DIR/run.sh"
 SCRIPT
 chmod +x ~/.shortcuts/CardLens.sh
 

@@ -241,6 +241,7 @@ card-lens/
 │   └── workflows/
 │       └── ci.yml            # Automated CI workflow
 ├── main.py                   # Starlette ASGI backend & OCR endpoint (POST /ocr)
+├── run.sh                    # Server launcher with auto-update git pull & address banner
 ├── requirements.txt          # Python dependencies
 ├── setup_termux.sh           # Automated Termux installation script (Port 5050)
 ├── test_ankiconnect.sh       # Bash verification script for AnkiConnect
