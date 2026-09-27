@@ -8,6 +8,7 @@ from typing import Optional
 from chrome_lens_py import LensAPI, LensAPIError, LensImageError
 from starlette.applications import Starlette
 from starlette.middleware import Middleware
+from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.middleware.cors import CORSMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse
@@ -135,6 +136,19 @@ async def ocr_endpoint(request: Request) -> JSONResponse:
     })
 
 
+class NoCacheStaticMiddleware(BaseHTTPMiddleware):
+    """Ensure HTML, JS, CSS, and manifest files are never served stale by aggressive browser caches."""
+
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        path = request.url.path
+        if path.endswith((".html", ".js", ".css", ".json", "/")) or path == "":
+            response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+            response.headers["Pragma"] = "no-cache"
+            response.headers["Expires"] = "0"
+        return response
+
+
 middleware = [
     Middleware(
         CORSMiddleware,
@@ -142,7 +156,8 @@ middleware = [
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
-    )
+    ),
+    Middleware(NoCacheStaticMiddleware),
 ]
 
 routes = [

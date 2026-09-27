@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cardlens-v3';
+const CACHE_NAME = 'cardlens-v4';
 const APP_SHELL = [
   '/',
   '/index.html',
@@ -43,9 +43,9 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Network-first strategy for app shell with cache fallback
+  // Network-first strategy with cache: 'no-cache' to always check server for fresh code
   event.respondWith(
-    fetch(event.request)
+    fetch(event.request, { cache: 'no-cache' })
       .then((networkResponse) => {
         if (networkResponse && networkResponse.status === 200) {
           const responseToCache = networkResponse.clone();

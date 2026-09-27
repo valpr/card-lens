@@ -219,10 +219,21 @@ function initServiceWorker() {
       navigator.serviceWorker.register('/sw.js')
         .then((reg) => {
           console.log('[PWA] Service Worker registered with scope:', reg.scope);
+          // Check for service worker updates immediately on page load
+          reg.update().catch(() => {});
         })
         .catch((err) => {
           console.warn('[PWA] Service Worker registration failed:', err);
         });
+
+      // Reload page once if a new service worker takes over to ensure UI is fresh
+      let refreshing = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (!refreshing) {
+          refreshing = true;
+          window.location.reload();
+        }
+      });
     });
   }
 }

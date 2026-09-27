@@ -15,7 +15,7 @@
   <link rel="apple-touch-icon" href="/icons/icon-192.png">
   
   <link rel="stylesheet" href="/vendor/cropperjs/cropper.min.css">
-  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/styles.css?v=0.4.1">
 </head>
 <body>
   <div class="app-container">
@@ -200,7 +200,10 @@
       <div class="modal-backdrop" id="modalBackdrop"></div>
       <div class="modal-content card">
         <div class="modal-header">
-          <h2 id="settingsModalTitle">Settings</h2>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <h2 id="settingsModalTitle">Settings</h2>
+            <span class="badge badge-subtle">v0.4.1</span>
+          </div>
           <button id="btnCloseSettings" class="icon-btn" aria-label="Close settings">✕</button>
         </div>
 
@@ -387,7 +390,7 @@
   </div>
 
   <script src="/vendor/cropperjs/cropper.min.js"></script>
-  <script src="/ankiconnect.js"></script>
-  <script src="/app.js"></script>
+  <script src="/ankiconnect.js?v=0.4.1"></script>
+  <script src="/app.js?v=0.4.1"></script>
 </body>
 </html>
