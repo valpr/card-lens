@@ -15,7 +15,7 @@
   <link rel="apple-touch-icon" href="/icons/icon-192.png">
   
   <link rel="stylesheet" href="/vendor/cropperjs/cropper.min.css">
-  <link rel="stylesheet" href="/styles.css?v=0.4.1">
+  <link rel="stylesheet" href="/styles.css?v=0.4.2">
 </head>
 <body>
   <div class="app-container">
@@ -63,22 +63,21 @@
       <section id="cropSection" class="stage-section">
         <div class="card crop-card">
           <div class="section-title-bar">
-            <h2>Crop Japanese Text</h2>
             <div class="section-title-actions">
               <button type="button" id="btnSettingsCrop" class="icon-btn-compact" title="Settings" aria-label="Settings">⚙️</button>
               <button id="btnCancelCrop" class="text-btn">Change Photo</button>
             </div>
           </div>
           
-          <!-- Mode Selector: Frame Card vs Focus Text (Box / Circle) -->
+          <!-- Mode Selector: Frame Card vs Focus Text (Box) -->
           <div class="crop-mode-bar" role="tablist" aria-label="Cropping mode">
             <button type="button" id="btnModeCrop" class="crop-mode-btn active" role="tab" aria-selected="true" title="Adjust the outer Anki card frame">
               <span class="mode-icon">📐</span>
-              <span class="mode-label">1. Frame Card</span>
+              <span class="mode-label">Frame Card</span>
             </button>
-            <button type="button" id="btnModeTrace" class="crop-mode-btn" role="tab" aria-selected="false" title="Drag a box or circle around text to focus OCR">
+            <button type="button" id="btnModeTrace" class="crop-mode-btn" role="tab" aria-selected="false" title="Drag a box around text to focus OCR">
               <span class="mode-icon">🎯</span>
-              <span class="mode-label">2. Focus Text</span>
+              <span class="mode-label">Focus Text</span>
               <span id="traceActiveBadge" class="trace-badge hidden">Focused</span>
             </button>
           </div>
@@ -87,7 +86,7 @@
             <img id="imageToCrop" alt="Source screenshot to crop" src="">
             <canvas id="traceCanvas" class="trace-canvas"></canvas>
             <div id="traceGuide" class="trace-guide hidden">
-              <span class="trace-guide-text">👆 Drag a box or circle around text to focus</span>
+              <span class="trace-guide-text">👆 Drag a box around text to focus</span>
               <button type="button" id="btnClearTrace" class="btn-clear-trace hidden">Clear</button>
             </div>
           </div>
@@ -390,7 +389,7 @@
   </div>
 
   <script src="/vendor/cropperjs/cropper.min.js"></script>
-  <script src="/ankiconnect.js?v=0.4.1"></script>
-  <script src="/app.js?v=0.4.1"></script>
+  <script src="/ankiconnect.js?v=0.4.2"></script>
+  <script src="/app.js?v=0.4.2"></script>
 </body>
 </html>

@@ -15,13 +15,12 @@ let pollingCountdownInterval = null;
 let snapshotNoteIds = new Set();
 let isPolling = false;
 
-// Text Focus (Box / Circle) State
+// Text Focus (Box) State
 let currentCropMode = 'crop'; // 'crop' | 'trace'
 let traceBounds = null; // { minX, minY, maxX, maxY } in container px
 let isDrawingTrace = false;
-let currentStroke = []; // points [{x, y}] for the active gesture
 let traceStartPoint = null; // { x, y } where drag started
-let isCircleGesture = false; // whether the active gesture is circular/loop
+let traceEndPoint = null; // { x, y } current drag position
 
 // DOM Elements
 const stages = {
@@ -746,7 +745,7 @@ function destroyCropper() {
 }
 
 // ==========================================
-// Drawing / Box / Circle Text Focus Controller
+// Box Text Focus Controller
 // ==========================================
 function initTraceControls() {
   if (!elements.traceCanvas) return;
@@ -757,14 +756,13 @@ function initTraceControls() {
     if (currentCropMode !== 'trace') return;
     canvas.setPointerCapture(e.pointerId);
     isDrawingTrace = true;
-    isCircleGesture = false;
 
     const rect = canvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
 
     traceStartPoint = { x, y };
-    currentStroke = [{ x, y }];
+    traceEndPoint = { x, y };
     renderTraceCanvas();
   });
 
@@ -775,20 +773,7 @@ function initTraceControls() {
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
 
-    currentStroke.push({ x, y });
-
-    // Check if the motion is a circle/loop or a straight diagonal box drag
-    if (currentStroke.length >= 6) {
-      let pathLen = 0;
-      for (let i = 1; i < currentStroke.length; i++) {
-        pathLen += Math.hypot(currentStroke[i].x - currentStroke[i - 1].x, currentStroke[i].y - currentStroke[i - 1].y);
-      }
-      const directDist = Math.hypot(x - traceStartPoint.x, y - traceStartPoint.y);
-      if (pathLen > 1.45 * directDist && pathLen > 45) {
-        isCircleGesture = true;
-      }
-    }
-
+    traceEndPoint = { x, y };
     renderTraceCanvas();
   });
 
@@ -796,9 +781,8 @@ function initTraceControls() {
     if (!isDrawingTrace) return;
     isDrawingTrace = false;
     calculateTraceBounds();
-    currentStroke = [];
     traceStartPoint = null;
-    isCircleGesture = false;
+    traceEndPoint = null;
     renderTraceCanvas();
     updateTraceUI();
     playSound('pop');
@@ -886,35 +870,17 @@ function setCropMode(mode) {
 }
 
 function calculateTraceBounds() {
-  if (currentStroke.length < 2 || !traceStartPoint) {
+  if (!traceStartPoint || !traceEndPoint) {
     return; // Don't wipe existing bounds on an accidental micro-tap
   }
 
-  let minX, minY, maxX, maxY;
+  let minX = Math.min(traceStartPoint.x, traceEndPoint.x);
+  let minY = Math.min(traceStartPoint.y, traceEndPoint.y);
+  let maxX = Math.max(traceStartPoint.x, traceEndPoint.x);
+  let maxY = Math.max(traceStartPoint.y, traceEndPoint.y);
 
-  if (isCircleGesture) {
-    // Circling / loop gesture: envelope across all points along the loop
-    minX = Infinity;
-    minY = Infinity;
-    maxX = -Infinity;
-    maxY = -Infinity;
-    currentStroke.forEach(pt => {
-      if (pt.x < minX) minX = pt.x;
-      if (pt.y < minY) minY = pt.y;
-      if (pt.x > maxX) maxX = pt.x;
-      if (pt.y > maxY) maxY = pt.y;
-    });
-  } else {
-    // Diagonal box drag: opposite corners of start and end
-    const lastPt = currentStroke[currentStroke.length - 1];
-    minX = Math.min(traceStartPoint.x, lastPt.x);
-    minY = Math.min(traceStartPoint.y, lastPt.y);
-    maxX = Math.max(traceStartPoint.x, lastPt.x);
-    maxY = Math.max(traceStartPoint.y, lastPt.y);
-  }
-
-  // Minimum gesture threshold (12px) to prevent tiny accidental taps from creating boxes
-  if (maxX - minX < 12 || maxY - minY < 12) {
+  // Minimum gesture threshold (10px) to prevent tiny accidental taps from creating boxes
+  if (maxX - minX < 10 || maxY - minY < 10) {
     return;
   }
 
@@ -945,78 +911,42 @@ function renderTraceCanvas() {
 
   const cropBox = cropper ? cropper.getCropBoxData() : null;
 
-  // 1. Live Gesture Drawing (in progress)
-  if (isDrawingTrace && currentStroke.length >= 2 && traceStartPoint) {
+  // 1. Live Box Dragging (in progress)
+  if (isDrawingTrace && traceStartPoint && traceEndPoint) {
     ctx.save();
-    if (isCircleGesture) {
-      // Freehand circle / loop trail
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
-      ctx.shadowColor = 'rgba(56, 189, 248, 0.7)';
-      ctx.shadowBlur = 10;
-      ctx.strokeStyle = 'rgba(56, 189, 248, 0.5)';
-      ctx.lineWidth = 14;
-      ctx.beginPath();
-      ctx.moveTo(currentStroke[0].x, currentStroke[0].y);
-      for (let i = 1; i < currentStroke.length; i++) {
-        ctx.lineTo(currentStroke[i].x, currentStroke[i].y);
-      }
-      ctx.stroke();
+    const bx = Math.min(traceStartPoint.x, traceEndPoint.x);
+    const by = Math.min(traceStartPoint.y, traceEndPoint.y);
+    const bw = Math.abs(traceEndPoint.x - traceStartPoint.x);
+    const bh = Math.abs(traceEndPoint.y - traceStartPoint.y);
 
-      ctx.shadowBlur = 0;
-      ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 3;
-      ctx.stroke();
+    // Translucent cyan fill
+    ctx.fillStyle = 'rgba(56, 189, 248, 0.16)';
+    ctx.fillRect(bx, by, bw, bh);
 
-      // Live dashed envelope enclosing the circle
-      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-      currentStroke.forEach(pt => {
-        if (pt.x < minX) minX = pt.x;
-        if (pt.y < minY) minY = pt.y;
-        if (pt.x > maxX) maxX = pt.x;
-        if (pt.y > maxY) maxY = pt.y;
-      });
-      ctx.setLineDash([4, 4]);
-      ctx.strokeStyle = '#38bdf8';
-      ctx.lineWidth = 1.5;
-      ctx.strokeRect(minX, minY, maxX - minX, maxY - minY);
-    } else {
-      // Rubber-band rectangle box
-      const lastPt = currentStroke[currentStroke.length - 1];
-      const bx = Math.min(traceStartPoint.x, lastPt.x);
-      const by = Math.min(traceStartPoint.y, lastPt.y);
-      const bw = Math.abs(lastPt.x - traceStartPoint.x);
-      const bh = Math.abs(lastPt.y - traceStartPoint.y);
+    // Dashed border
+    ctx.setLineDash([5, 4]);
+    ctx.strokeStyle = '#38bdf8';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(bx, by, bw, bh);
 
-      // Translucent cyan fill
-      ctx.fillStyle = 'rgba(56, 189, 248, 0.16)';
-      ctx.fillRect(bx, by, bw, bh);
+    // Corner markers
+    ctx.setLineDash([]);
+    ctx.fillStyle = '#38bdf8';
+    const hs = 6;
+    ctx.fillRect(bx - hs / 2, by - hs / 2, hs, hs);
+    ctx.fillRect(bx + bw - hs / 2, by - hs / 2, hs, hs);
+    ctx.fillRect(bx - hs / 2, by + bh - hs / 2, hs, hs);
+    ctx.fillRect(bx + bw - hs / 2, by + bh - hs / 2, hs, hs);
 
-      // Dashed border
-      ctx.setLineDash([5, 4]);
-      ctx.strokeStyle = '#38bdf8';
-      ctx.lineWidth = 2;
-      ctx.strokeRect(bx, by, bw, bh);
-
-      // Corner markers
-      ctx.setLineDash([]);
+    // Real-time dimensions tag
+    if (bw > 30 && bh > 20) {
+      const dimText = `${Math.round(bw)} × ${Math.round(bh)}`;
+      ctx.font = '10px monospace';
+      ctx.fillStyle = 'rgba(18, 18, 20, 0.85)';
+      const textW = ctx.measureText(dimText).width + 8;
+      ctx.fillRect(bx, by + bh + 4, textW, 14);
       ctx.fillStyle = '#38bdf8';
-      const hs = 6;
-      ctx.fillRect(bx - hs / 2, by - hs / 2, hs, hs);
-      ctx.fillRect(bx + bw - hs / 2, by - hs / 2, hs, hs);
-      ctx.fillRect(bx - hs / 2, by + bh - hs / 2, hs, hs);
-      ctx.fillRect(bx + bw - hs / 2, by + bh - hs / 2, hs, hs);
-
-      // Real-time dimensions tag
-      if (bw > 30 && bh > 20) {
-        const dimText = `${Math.round(bw)} × ${Math.round(bh)}`;
-        ctx.font = '10px monospace';
-        ctx.fillStyle = 'rgba(18, 18, 20, 0.85)';
-        const textW = ctx.measureText(dimText).width + 8;
-        ctx.fillRect(bx, by + bh + 4, textW, 14);
-        ctx.fillStyle = '#38bdf8';
-        ctx.fillText(dimText, bx + 4, by + bh + 14);
-      }
+      ctx.fillText(dimText, bx + 4, by + bh + 14);
     }
     ctx.restore();
     return;
@@ -1124,7 +1054,7 @@ function updateTraceUI() {
   if (guideText) {
     guideText.textContent = hasTrace 
       ? '✓ Text focused! Drag again to adjust, or Extract below' 
-      : '👆 Drag a box or circle around text to focus';
+      : '👆 Drag a box around text to focus';
   }
   const submitText = elements.btnSubmitCrop?.querySelector('.btn-text');
   if (submitText) {
@@ -1134,10 +1064,9 @@ function updateTraceUI() {
 
 function clearTrace() {
   traceBounds = null;
-  currentStroke = [];
   traceStartPoint = null;
+  traceEndPoint = null;
   isDrawingTrace = false;
-  isCircleGesture = false;
   renderTraceCanvas();
   updateTraceUI();
 }
