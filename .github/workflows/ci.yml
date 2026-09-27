@@ -43,3 +43,7 @@ jobs:
       - name: Run AnkiConnect JS tests
         run: |
           node tests/test_ankiconnect.mjs
+
+      - name: Run Line Merging JS tests
+        run: |
+          node tests/test_line_merging.mjs

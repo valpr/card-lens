@@ -17,6 +17,11 @@
 
   --font-base: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --font-japanese: "Hiragino Kaku Gothic ProN", "Yu Gothic", "Meiryo", "Noto Sans JP", sans-serif;
+  --font-ocr: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", "Noto Sans JP",
+              "PingFang SC", "Microsoft YaHei", "Noto Sans SC",
+              "PingFang TC", "Microsoft JhengHei", "Noto Sans TC",
+              "Noto Sans KR", "Malgun Gothic",
+              -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 
   --radius-sm: 8px;
   --radius-md: 14px;
@@ -648,11 +653,12 @@ body {
 }
 
 .ocr-text {
-  font-family: var(--font-japanese);
+  font-family: var(--font-ocr);
   font-size: 1.35rem;
   line-height: 1.7;
   color: #ffffff;
-  word-break: break-all;
+  overflow-wrap: break-word;
+  word-break: normal;
   white-space: pre-wrap;
   user-select: text;
   -webkit-user-select: text;
@@ -664,16 +670,23 @@ body {
   background: transparent;
   border: none;
   outline: none;
-  font-family: var(--font-japanese);
+  font-family: var(--font-ocr);
   font-size: 1.35rem;
   line-height: 1.7;
   color: #ffffff;
   resize: vertical;
-  word-break: break-all;
+  overflow-wrap: break-word;
+  word-break: normal;
   white-space: pre-wrap;
   padding: 0;
   margin: 0;
   box-sizing: border-box;
+}
+
+.ocr-text[dir="rtl"],
+.ocr-text-input[dir="rtl"] {
+  direction: rtl;
+  text-align: right;
 }
 
 .ocr-text-container.editing {

@@ -17,9 +17,9 @@ When immersing in Japanese through games (Switch, Steam Deck, PC), manga, visual
 - 📸 **Any Image Source:** Snap a photo of a screen or book, import gallery screenshots, drag-and-drop, or paste directly from your clipboard (`Ctrl+V`).
 - ✂️ **Touch-Friendly Cropper:** Crop directly to the dialogue box with pinch/drag controls, 90° rotation, and offline-vendored Cropper.js.
 - 🎨 **Image Pre-Processing Filters:** Real-time canvas filters (Contrast boost, Sharpen, Invert colors, B&W / Grayscale) with live preview to clarify low-contrast or stylized game text before OCR.
-- 🔍 **Google Lens OCR Backend:** High-accuracy Japanese text recognition powered by `chrome-lens-py` running locally on Starlette / ASGI.
-- 📖 **Yomitan-Optimized:** Renders clean, selectable Japanese typography designed specifically for Yomitan's one-tap popup dictionary and card creation.
-- 🤖 **Auto-Attach Mode:** Pre-polls recent notes and automatically detects newly created cards from Yomitan via diff polling, attaching the screenshot seamlessly with a visual progress dock and cancel/attach buttons.
+- 🔍 **Google Lens OCR Backend:** High-accuracy multilingual text recognition (Japanese, Chinese, Korean, English, Spanish, French, German, Russian, Arabic, etc.) with automatic language detection powered by `chrome-lens-py`.
+- 📖 **Dictionary & Mining Ready:** Renders clean, selectable typography with script-aware line merging (continuous CJK joining, European de-hyphenation, Hangul spacing, RTL support) designed for Yomitan, Zhongwen, and browser dictionary extensions.
+- 🤖 **Auto-Attach Mode:** Pre-polls recent notes and automatically detects newly created cards from Yomitan/Anki via diff polling, attaching the screenshot seamlessly with a visual progress dock and cancel/attach buttons.
 - 🎴 **1-Tap Anki Attachment:** Manual fallback to upload the cropped image into Anki's media collection and attach it to the latest card via AnkiConnect (`localhost:8765`).
 - 🔊 **Synthetic Audio Cues:** Zero-dependency Web Audio clicks, OCR blips, and card attach chimes (with a toggle in Settings).
 - ⌨️ **Desktop Shortcuts:** Full keyboard workflow (`Enter` to crop, `R`/`Shift+R` to rotate, `A` to attach, `N` for new capture, `Esc` to cancel).
@@ -228,6 +228,9 @@ python -m unittest discover tests
 
 # Run AnkiConnect client unit tests (Node.js)
 node tests/test_ankiconnect.mjs
+
+# Run multilingual script-aware line merging unit tests (Node.js)
+node tests/test_line_merging.mjs
 
 # Validate AnkiConnect Android connectivity via bash
 bash test_ankiconnect.sh

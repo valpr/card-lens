@@ -71,7 +71,17 @@ async def ocr_endpoint(request: Request) -> JSONResponse:
     if not image_str:
         return JSONResponse({"detail": "Image data must not be empty."}, status_code=400)
 
-    language = data.get("language") or "ja"
+    # Language parameter: if omitted, default to 'ja'. If empty string or null, pass None to enable auto-detection in Lens.
+    language = "ja"
+    if "language" in data:
+        lang_val = data.get("language")
+        if lang_val is None:
+            language = None
+        elif isinstance(lang_val, str):
+            lang_clean = lang_val.strip()
+            language = lang_clean if lang_clean else None
+        else:
+            language = str(lang_val).strip() or None
 
     # Strip Data URI prefix if present (e.g. 'data:image/jpeg;base64,...')
     if "," in image_str:

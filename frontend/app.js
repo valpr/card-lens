@@ -1232,7 +1232,8 @@ async function handleCropSubmit() {
     elements.focusedOcrBadge.classList.toggle('hidden', !isTraceUsed);
   }
 
-  const ocrLang = localStorage.getItem('ocr_lang') || 'ja';
+  const storedLang = localStorage.getItem('ocr_lang');
+  const ocrLang = storedLang !== null ? storedLang : 'ja';
 
   try {
     const response = await fetch('/ocr', {
@@ -1242,7 +1243,7 @@ async function handleCropSubmit() {
       },
       body: JSON.stringify({
         image: ocrPayload,
-        language: ocrLang || null
+        language: ocrLang ? ocrLang : null
       })
     });
 
@@ -1261,7 +1262,20 @@ async function handleCropSubmit() {
     isLinesMerged = autoMergePref;
     applyLineMergeState();
 
-    elements.detectedLangBadge.textContent = (data.detected_language || ocrLang || 'JA').toUpperCase();
+    const activeLang = data.detected_language || ocrLang || 'auto';
+    elements.detectedLangBadge.textContent = activeLang.toUpperCase();
+
+    // Dynamically apply lang and text direction to OCR containers
+    const normalizedLang = data.detected_language || (ocrLang ? ocrLang : 'en');
+    const isRtl = /^(ar|he|fa|ur)/i.test(normalizedLang);
+    if (elements.ocrText) {
+      elements.ocrText.setAttribute('lang', normalizedLang);
+      elements.ocrText.setAttribute('dir', isRtl ? 'rtl' : 'ltr');
+    }
+    if (elements.ocrTextInput) {
+      elements.ocrTextInput.setAttribute('lang', normalizedLang);
+      elements.ocrTextInput.setAttribute('dir', isRtl ? 'rtl' : 'ltr');
+    }
 
     elements.loadingIndicator.classList.add('hidden');
     elements.ocrCard.classList.remove('hidden');
@@ -1439,7 +1453,7 @@ function enterOcrEdit() {
   if (elements.ocrTextInput) elements.ocrTextInput.classList.remove('hidden');
   if (elements.ocrTextContainer) elements.ocrTextContainer.classList.add('editing');
   if (elements.miningTip) {
-    elements.miningTip.innerHTML = '✏️ <strong>Editing mode:</strong> Fix OCR typos above. Tap <strong>✓ Done</strong> (or press Ctrl+Enter) to save for Yomitan.';
+    elements.miningTip.innerHTML = '✏️ <strong>Editing mode:</strong> Fix OCR typos above. Tap <strong>✓ Done</strong> (or press Ctrl+Enter) to save for dictionary lookup.';
     elements.miningTip.classList.add('editing');
   }
 
@@ -1470,7 +1484,7 @@ function saveOcrEdit() {
 
   cancelOcrEdit(false);
   playSound('pop');
-  showToast('Text updated! Ready for Yomitan.', 'info', 2500);
+  showToast('Text updated! Ready for dictionary lookup.', 'info', 2500);
 }
 
 function cancelOcrEdit(silent = true) {
@@ -1479,7 +1493,7 @@ function cancelOcrEdit(silent = true) {
   if (elements.ocrText) elements.ocrText.classList.remove('hidden');
   if (elements.ocrTextContainer) elements.ocrTextContainer.classList.remove('editing');
   if (elements.miningTip) {
-    elements.miningTip.innerHTML = '💡 <strong>Mining step:</strong> Tap or drag words above with Yomitan to add an Anki card. Then tap <strong>Attach Image</strong> below.';
+    elements.miningTip.innerHTML = '💡 <strong>Mining step:</strong> Look up words above with Yomitan / dictionary extension to add an Anki card. Then tap <strong>Attach Image</strong> below.';
     elements.miningTip.classList.remove('editing');
   }
 
@@ -1517,7 +1531,7 @@ function fallbackCopyText() {
 }
 
 // ==========================================
-// Japanese / Multiline OCR Text Formatting
+// Multilingual / Script-Aware OCR Text Formatting
 // ==========================================
 function formatMergedLines(text) {
   if (!text) return '';
@@ -1526,13 +1540,28 @@ function formatMergedLines(text) {
 
   let merged = lines[0];
   for (let i = 1; i < lines.length; i++) {
-    const prev = lines[i - 1];
+    const prev = merged;
     const curr = lines[i];
-    // If both ends are alphanumeric ASCII (e.g. English words), join with space
-    if (/[a-zA-Z0-9]$/.test(prev) && /^[a-zA-Z0-9]/.test(curr)) {
+
+    // Hyphenation wrap: if previous line ends with an alphabetic letter and hyphen (e.g. "inter-" + "national")
+    if (/[\p{L}]-$/u.test(prev) && /^[\p{L}]/u.test(curr)) {
+      merged = merged.slice(0, -1) + curr;
+      continue;
+    }
+
+    // CJK ideographs/kana range (Japanese Kanji/Kana, Chinese Hanzi) do not use spaces
+    const isPrevCjk = /[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]$/.test(prev);
+    const isCurrCjk = /^[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]/.test(curr);
+
+    if (isPrevCjk && isCurrCjk) {
+      // Both are CJK ideographs or kana: join seamlessly without space
+      merged += curr;
+    } else if (/[\p{L}\p{N}]$/u.test(prev) && /^[\p{L}\p{N}]/u.test(curr)) {
+      // Space-using scripts (Latin, Cyrillic, Greek, Korean Hangul, Arabic, numbers): join with space
+      merged += ' ' + curr;
+    } else if (/[,:;]$/.test(prev) && /^[\p{L}\p{N}]/u.test(curr)) {
       merged += ' ' + curr;
     } else {
-      // In Japanese / CJK, join seamlessly without spaces
       merged += curr;
     }
   }
@@ -1544,7 +1573,7 @@ function toggleMergeLines() {
   isLinesMerged = !isLinesMerged;
   applyLineMergeState();
   playSound('click');
-  showToast(isLinesMerged ? 'Lines joined for Yomitan' : 'Lines split to original format', 'info', 2000);
+  showToast(isLinesMerged ? 'Lines joined' : 'Lines split to original format', 'info', 2000);
 }
 
 function applyLineMergeState() {
@@ -1562,7 +1591,7 @@ function applyLineMergeState() {
   } else {
     elements.btnToggleMergeLines.classList.remove('active');
     elements.btnToggleMergeLines.textContent = '☵ Join';
-    elements.btnToggleMergeLines.title = 'Join lines for seamless Yomitan scanning';
+    elements.btnToggleMergeLines.title = 'Join lines for seamless dictionary scanning';
     currentOcrText = rawOcrText;
   }
 

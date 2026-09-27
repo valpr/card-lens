@@ -61,6 +61,31 @@ class TestCardLensAPI(unittest.TestCase):
         self.assertTrue(len(data["text"]) > 0)
         self.assertIn("CONSOLE", data["text"].upper())
 
+    def test_auto_detect_language(self):
+        """Auto-detect language when language is empty string or None"""
+        img = Image.new("RGB", (300, 100), color="white")
+        draw = ImageDraw.Draw(img)
+        draw.text((20, 35), "AUTOMATIC LANGUAGE DETECTION", fill="black")
+
+        buf = io.BytesIO()
+        img.save(buf, format="PNG")
+        b64_data = f"data:image/png;base64,{base64.b64encode(buf.getvalue()).decode()}"
+
+        # Test empty string triggers auto-detect
+        response = self.client.post("/ocr", json={"image": b64_data, "language": ""})
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertIn("text", data)
+        self.assertIn("AUTOMATIC", data["text"].upper())
+        self.assertEqual(data.get("detected_language"), "en")
+
+        # Test null triggers auto-detect
+        response_null = self.client.post("/ocr", json={"image": b64_data, "language": None})
+        self.assertEqual(response_null.status_code, 200)
+        data_null = response_null.json()
+        self.assertIn("text", data_null)
+        self.assertEqual(data_null.get("detected_language"), "en")
+
     def test_static_manifest_accessible(self):
         """Milestone 3.1 & 7.1: Static file mount serves manifest.json"""
         response = self.client.get("/manifest.json")

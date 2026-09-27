@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cardlens-v8';
+const CACHE_NAME = 'cardlens-v9';
 const APP_SHELL = [
   '/',
   '/index.html',

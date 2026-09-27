@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -158,10 +158,10 @@
             <button id="btnCopyText" class="btn btn-small btn-secondary" title="Copy text to clipboard">📋 Copy</button>
           </div>
 
-          <!-- Selectable Japanese text container for Yomitan -->
+          <!-- Selectable OCR text container for dictionary lookups & mining -->
           <div class="ocr-text-container" id="ocrTextContainer">
-            <p id="ocrText" class="ocr-text" tabindex="0" lang="ja"></p>
-            <textarea id="ocrTextInput" class="ocr-text-input hidden" lang="ja" spellcheck="false" placeholder="Edit Japanese text here..."></textarea>
+            <p id="ocrText" class="ocr-text" tabindex="0" lang="auto"></p>
+            <textarea id="ocrTextInput" class="ocr-text-input hidden" lang="auto" spellcheck="false" placeholder="Edit extracted text here..."></textarea>
           </div>
 
           <!-- Auto-Attach Polling Indicator Banner -->
@@ -169,14 +169,14 @@
             <div class="polling-pulse-dot"></div>
             <div class="polling-info">
               <span class="polling-title">Auto-attaching to next Anki card...</span>
-              <span id="pollingCountdown" class="polling-sub">Tap word in Yomitan to create card (45s left)</span>
+              <span id="pollingCountdown" class="polling-sub">Create card in Anki (via Yomitan/extension) to attach (45s left)</span>
             </div>
             <button type="button" id="btnCancelPolling" class="btn btn-secondary btn-small">Cancel</button>
           </div>
 
           <!-- Card Mining Instructions / Edit Mode Banner -->
           <div class="mining-tip" id="miningTip">
-            💡 <strong>Mining step:</strong> Tap or drag words above with Yomitan to add an Anki card. Then tap <strong>Attach Image</strong> below.
+            💡 <strong>Mining step:</strong> Look up words above with Yomitan / dictionary extension to add an Anki card. Then tap <strong>Attach Image</strong> below.
           </div>
 
           <!-- Cropped Image Preview & Attach Action -->
@@ -260,9 +260,20 @@
           <div class="form-group">
             <label for="selectOcrLang">OCR Language</label>
             <select id="selectOcrLang">
+              <option value="">✨ Auto-detect</option>
               <option value="ja" selected>Japanese (ja)</option>
+              <option value="zh">Chinese - Simplified (zh)</option>
+              <option value="zh-TW">Chinese - Traditional (zh-TW)</option>
+              <option value="ko">Korean (ko)</option>
               <option value="en">English (en)</option>
-              <option value="">Auto-detect</option>
+              <option value="es">Spanish (es)</option>
+              <option value="fr">French (fr)</option>
+              <option value="de">German (de)</option>
+              <option value="it">Italian (it)</option>
+              <option value="pt">Portuguese (pt)</option>
+              <option value="ru">Russian (ru)</option>
+              <option value="ar">Arabic (ar)</option>
+              <option value="vi">Vietnamese (vi)</option>
             </select>
           </div>
 
@@ -271,15 +282,15 @@
               <input type="checkbox" id="inputAutoAttach">
               <span class="checkbox-label">Enable Auto-Attach mode by default</span>
             </label>
-            <small class="form-hint">Automatically polls for your newly mined Yomitan card and attaches the crop.</small>
+            <small class="form-hint">Automatically polls for your newly mined Yomitan/Anki card and attaches the crop.</small>
           </div>
 
           <div class="form-group form-checkbox-group">
             <label class="checkbox-container" for="inputAutoMergeLines">
               <input type="checkbox" id="inputAutoMergeLines">
-              <span class="checkbox-label">Auto-join Japanese line breaks</span>
+              <span class="checkbox-label">Auto-join multi-line text breaks</span>
             </label>
-            <small class="form-hint">Merge multi-column lines into a continuous sentence for Yomitan lookup.</small>
+            <small class="form-hint">Merge multi-line text into a continuous sentence for dictionary lookups.</small>
           </div>
 
           <div class="form-group form-checkbox-group">
