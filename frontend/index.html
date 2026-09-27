@@ -257,11 +257,48 @@
 
         <p class="wizard-subtitle">Choose how you'd like to configure your Anki deck and picture fields:</p>
 
-        <!-- Option A: Yomitan Settings Import -->
-        <div class="wizard-card-option" id="wizardOptionYomitan">
+        <!-- Option 1: Live AnkiConnect Detection (Recommended) -->
+        <div class="wizard-card-option" id="wizardOptionAnki">
           <div class="option-header">
             <span class="option-badge">Recommended</span>
-            <h3>⚡ Option 1: Import Yomitan Settings</h3>
+            <h3>🔌 Option 1: Live AnkiConnect Auto-Detection</h3>
+          </div>
+          <p class="option-desc">Connect directly to AnkiDroid / AnkiConnect (<code>localhost:8765</code>):</p>
+
+          <div class="wizard-actions">
+            <button type="button" id="btnWizardAutoDetect" class="btn btn-primary btn-small" style="width: 100%; margin-bottom: 12px; font-weight: 600;">
+              ✨ Auto-Detect from Recent Anki Card
+            </button>
+          </div>
+
+          <div class="wizard-fields-grid">
+            <div class="form-group">
+              <label for="wizardDeckSelect">Target Deck:</label>
+              <select id="wizardDeckSelect">
+                <option value="Mining">Mining (Default)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="wizardFieldSelect">Picture Field:</label>
+              <select id="wizardFieldSelect">
+                <option value="Picture">Picture (Default)</option>
+              </select>
+            </div>
+          </div>
+
+          <button type="button" id="btnApplyAnkiDiscovery" class="btn btn-secondary btn-small" style="width: 100%; margin-top: 8px;">
+            Save & Finish Setup
+          </button>
+        </div>
+
+        <div class="wizard-divider">
+          <span>OR</span>
+        </div>
+
+        <!-- Option 2: Yomitan Settings Import -->
+        <div class="wizard-card-option" id="wizardOptionYomitan">
+          <div class="option-header">
+            <h3>⚡ Option 2: Import Yomitan Settings JSON</h3>
           </div>
           <p class="option-desc">Export your settings in Yomitan (<em>Settings → Backup → Export Settings</em>) and upload the file below:</p>
           
@@ -290,43 +327,6 @@
               ✓ Confirm & Apply Settings
             </button>
           </div>
-        </div>
-
-        <div class="wizard-divider">
-          <span>OR</span>
-        </div>
-
-        <!-- Option B: Anki Live Detection & Selectors -->
-        <div class="wizard-card-option" id="wizardOptionAnki">
-          <div class="option-header">
-            <h3>🔌 Option 2: Live Anki Detection</h3>
-          </div>
-          <p class="option-desc">Connect directly to AnkiConnect Android (`http://localhost:8765`):</p>
-
-          <div class="wizard-actions">
-            <button type="button" id="btnWizardAutoDetect" class="btn btn-secondary btn-small" style="width: 100%; margin-bottom: 10px;">
-              ✨ Auto-Detect from Recent Anki Card
-            </button>
-          </div>
-
-          <div class="wizard-fields-grid">
-            <div class="form-group">
-              <label for="wizardDeckSelect">Deck:</label>
-              <select id="wizardDeckSelect">
-                <option value="Mining">Mining (Default)</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label for="wizardFieldSelect">Picture Field:</label>
-              <select id="wizardFieldSelect">
-                <option value="Picture">Picture (Default)</option>
-              </select>
-            </div>
-          </div>
-
-          <button type="button" id="btnApplyAnkiDiscovery" class="btn btn-primary btn-small" style="width: 100%; margin-top: 6px;">
-            Save & Finish Setup
-          </button>
         </div>
 
         <div class="wizard-footer">

@@ -24,7 +24,7 @@ When immersing in Japanese through games (Switch, Steam Deck, PC), manga, visual
 - 🔊 **Synthetic Audio Cues:** Zero-dependency Web Audio clicks, OCR blips, and card attach chimes (with a toggle in Settings).
 - ⌨️ **Desktop Shortcuts:** Full keyboard workflow (`Enter` to crop, `R`/`Shift+R` to rotate, `A` to attach, `N` for new capture, `Esc` to cancel).
 - 📝 **Custom Field Formatting:** Customize the image tag template (e.g. `<img src="{filename}">` or custom wrapper divs) in Settings.
-- ⚡ **1-Click Yomitan Setup:** Drop your exported Yomitan settings JSON to auto-configure your target deck and picture field in one click!
+- ✨ **1-Tap Anki Auto-Detection:** Automatically detect your target deck and picture field directly from your latest card via AnkiConnect (or import Yomitan settings JSON).
 - 🛡️ **Zero Port Conflicts:** Serves on port `5050` by default, avoiding collision with Android Wireless ADB (`port 5555`).
 - 📱 **Installable PWA:** Installs directly to your Android home screen as a standalone, fullscreen app with offline-cached app shell.
 
@@ -145,13 +145,21 @@ You can also run CardLens on your computer to mine cards from PC games, emulator
 
 ---
 
-### 3. First-Time Setup & Yomitan Auto-Configuration
+### 3. First-Time Setup & AnkiConnect Configuration
 
 When you open `http://localhost:5050` for the first time, the **First-Time Setup Wizard** automatically welcomes you to configure your Anki deck and picture fields.
 
 You can configure your settings in **seconds** using either method:
 
-#### ⚡ Method A: Instant Yomitan Settings Import (Recommended)
+#### 🔌 Method A: Live AnkiConnect Auto-Detection (Recommended)
+If AnkiConnect Android is running (`http://localhost:8765`):
+1. Tap **"✨ Auto-Detect from Recent Anki Card"** in the wizard.
+2. CardLens queries your most recently created card in AnkiDroid and auto-populates the exact deck name and picture field used by your note model!
+3. Tap **"Save & Finish Setup"** — you're completely configured in one tap with zero manual typing!
+4. *(Optional)* You can also pick your deck and picture field directly from live dropdowns populated straight from Anki.
+
+#### ⚡ Method B: Instant Yomitan Settings Import (Alternative)
+If you prefer configuring via your Yomitan profile:
 1. In Yomitan, export your settings:  
    **Yomitan Settings → Backup → Export Settings** (downloads `yomitan-settings-YYYY-MM-DD.json`).
 2. In CardLens, drop or select this `.json` file in the setup wizard (or in **⚙️ Settings → Import Yomitan JSON**).
@@ -160,13 +168,7 @@ You can configure your settings in **seconds** using either method:
    - Your target Anki deck (e.g. `Mining` or `Japanese`)
    - Your picture/screenshot field (e.g. `Picture`, `Image`, or `Screenshot`)
    - Your note model (e.g. `Kaishi 1.5k`, `Animecards`)
-4. Review the detected settings and tap **"Confirm & Apply Settings"** — you're completely configured with zero manual typing!
-
-#### 🔌 Method B: Live Anki Auto-Detection
-If AnkiConnect is already running:
-1. Tap **"✨ Auto-Detect from Recent Anki Card"** in the wizard.
-2. CardLens queries your most recently created card in AnkiDroid and auto-populates the exact deck name and picture field used by your card!
-3. Alternatively, pick your deck and picture field directly from live dropdowns populated straight from Anki.
+4. Review the detected settings and tap **"Confirm & Apply Settings"**.
 
 You can also re-run the wizard or adjust fields anytime by tapping the **⚙️ Settings** icon in the header.
 
