@@ -73,39 +73,53 @@ When immersing in Japanese through games (Switch, Steam Deck, PC), manga, visual
 
 ## 🚀 Quick Start & Setup
 
-### Prerequisites
+### 📱 Android Setup (Fresh Install to Running in 3 Minutes)
 
-For the mobile workflow, you will need an Android device with:
-1. **[Termux](https://f-droid.org/packages/com.termux/)** (from F-Droid, **not** Google Play).
-2. **[Termux:Widget](https://f-droid.org/packages/com.termux.widget/)** (optional, for one-tap home screen launch).
-3. **[Firefox for Android](https://www.mozilla.org/firefox/browsers/mobile/android/)** with the **[Yomitan](https://addons.mozilla.org/firefox/addon/yomitan/)** extension and Japanese dictionaries installed.
-4. **[AnkiDroid](https://f-droid.org/packages/com.ichi2.anki/)** + **[AnkiConnect Android](https://github.com/kamwithk/AnkiconnectAndroid)** (available on IzzyOnDroid F-Droid repo).
+> [!IMPORTANT]
+> **Do not install Termux from Google Play** (the Play Store build is abandoned and broken). Always install Termux from F-Droid.
 
----
+#### Step 1: Install Required Apps
+1. Install the following apps from **[F-Droid](https://f-droid.org/)** (or via direct APK downloads):
+   - **[Termux](https://f-droid.org/packages/com.termux/)**
+   - **[Termux:Widget](https://f-droid.org/packages/com.termux.widget/)** *(optional, for one-tap home screen launch; must be installed from F-Droid to match Termux's signing key)*
+   - **[AnkiDroid](https://f-droid.org/packages/com.ichi2.anki/)**
+   - **[AnkiConnect Android](https://github.com/kamwithk/AnkiconnectAndroid)** *(from IzzyOnDroid F-Droid repo or GitHub releases)*
+2. In **[Firefox for Android](https://www.mozilla.org/firefox/browsers/mobile/android/)**, install the **[Yomitan](https://addons.mozilla.org/firefox/addon/yomitan/)** add-on and load your Japanese dictionary.
 
-### 1. Termux Setup (Android)
+#### Step 2: Run the 1-Line Termux Setup
+Open **Termux** on your phone and paste this single command:
+```bash
+pkg update -y && pkg install -y curl && curl -sL https://raw.githubusercontent.com/valpr/card-lens/main/setup_termux.sh | bash
+```
+*What this automated script does:*
+- Updates packages and installs `python` and `git`
+- Clones CardLens to `~/cardlens` and installs all dependencies
+- Installs the global `cardlens` command into your PATH
+- Sets up the home screen launcher for Termux:Widget
 
-1. Open Termux and run the setup script:
-   ```bash
-   curl -sL https://raw.githubusercontent.com/valpr/card-lens/main/setup_termux.sh | bash
+#### Step 3: Grant Android Background Permissions (30 seconds)
+Android will kill background services by default unless you grant these:
+1. Go to Android **Settings** → **Apps** → **Termux**:
+   - **Battery** → Select **Unrestricted** (or "Don't optimize").
+   - *(If using Termux:Widget)* **Appear on top** / **Display pop-up window while running in background** → **Allow**.
+2. Open **AnkiConnect Android** and toggle the service to **Started**.
+
+#### Step 4: Launch CardLens
+Pick whichever method you prefer:
+- **One-Tap Home Screen Shortcut (Termux:Widget):** Long-press an empty space on your home screen → **Widgets** → **Termux:Widget** → drag the **Termux shortcut (1×1)** onto your screen and tap `CardLens.sh`. Tap it anytime to launch!
+- **Terminal:** Open Termux and simply run:
+  ```bash
+  cardlens
+  ```
+
+#### Step 5: Open CardLens & Install PWA
+1. Open Firefox for Android and navigate to:
+   ```text
+   http://localhost:5050
    ```
-   *Or clone the repository and run:*
-   ```bash
-   git clone https://github.com/valpr/card-lens.git cardlens
-   cd cardlens
-   bash setup_termux.sh
-   ```
-
-2. **Disable Android Battery Optimization for Termux:**
-   - Go to Android **Settings** → **Apps** → **Termux** → **Battery** → Select **Unrestricted**.
-   - (Optional) In Termux, run `termux-wake-lock` to keep background services awake during long mining sessions.
-
-3. **Start the Server:**
-   - Either tap the **"CardLens"** shortcut widget on your home screen, or run:
-     ```bash
-     cd ~/cardlens
-     uvicorn main:app --host 0.0.0.0 --port 5050
-     ```
+2. Tap the Firefox menu (`⋮`) → **"Add to Home screen"** (or **"Install"**).
+3. Tap the **CardLens** icon on your home screen to use it in full-screen standalone mode!
+4. The first-time wizard will guide you to auto-configure with your Yomitan settings or Anki deck.
 
 ---
 
