@@ -134,9 +134,12 @@ fi
 # ----------------------------------------------------
 if [ -d ".git" ]; then
   echo "Checking for CardLens updates..."
-  git -c http.connectTimeout=4 -c http.lowSpeedTime=4 fetch origin main 2>/dev/null && \
-  git reset --hard origin/main 2>/dev/null || \
-  git pull --ff-only 2>/dev/null || true
+  if git -c http.connectTimeout=10 -c http.lowSpeedTime=10 fetch origin main; then
+    git reset --hard origin/main
+    echo "CardLens is updated to $(git rev-parse --short HEAD)."
+  else
+    echo "Notice: Could not connect to GitHub. Continuing in offline mode."
+  fi
 fi
 
 # ----------------------------------------------------
