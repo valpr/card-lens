@@ -111,12 +111,19 @@ async function runTests() {
     return { result: null, error: null };
   };
 
+  let addedTagsParams = null;
+  mockAnkiResponses['addTags'] = (params) => {
+    addedTagsParams = params;
+    return { result: null, error: null };
+  };
+
   const attachResult = await window.AnkiConnect.attachImageToLatestNote('data:image/jpeg;base64,QUJD');
   assert.strictEqual(attachResult.noteId, 1002);
   assert.strictEqual(attachResult.noteName, '冒険');
   assert.strictEqual(attachResult.fieldUsed, 'Image');
   assert.ok(updatedFields.Image.includes('<img src="cardlens_'));
-  console.log('✔ Test 2.4: attachImageToLatestNote passed');
+  assert.deepStrictEqual(addedTagsParams, { notes: [1002], tags: 'cardlens' });
+  console.log('✔ Test 2.4: attachImageToLatestNote passed (with cardlens tag)');
 
   // Test 6: AnkiConnect offline handling (Milestone 6.6)
   mockAnkiResponses['version'] = new Error('Network error');
@@ -244,6 +251,37 @@ async function runTests() {
   assert.ok(directUpdatedFields.Picture.startsWith('<div class="card-screenshot"><img src="cardlens_'));
   assert.ok(directUpdatedFields.Picture.endsWith('" loading="lazy"></div>'));
   console.log('✔ Test 2.11: attachImageToNote with custom template passed');
+
+  // Test 12: Direct addTags check in attachImageToNote
+  let directTagCalls = [];
+  mockAnkiResponses['addTags'] = (params) => {
+    directTagCalls.push(params);
+    return { result: null, error: null };
+  };
+  await window.AnkiConnect.attachImageToNote(3003, 'data:image/jpeg;base64,QUJD');
+  assert.strictEqual(directTagCalls.length, 1);
+  assert.deepStrictEqual(directTagCalls[0], { notes: [3003], tags: 'cardlens' });
+  console.log('✔ Test 2.12: attachImageToNote explicitly tags notes with cardlens');
+
+  // Test 13: Multi-card baseline & unattached filtering logic
+  const baselineSet = new Set([4001]);
+  const attachedSet = new Set();
+  const currentNotes = [4001, 4002, 4003];
+
+  // First check discovers 4002 and 4003
+  let unattached = currentNotes.filter(id => !baselineSet.has(id) && !attachedSet.has(id));
+  assert.deepStrictEqual(unattached, [4002, 4003]);
+
+  // Attach card 4002
+  attachedSet.add(4002);
+  unattached = currentNotes.filter(id => !baselineSet.has(id) && !attachedSet.has(id));
+  assert.deepStrictEqual(unattached, [4003]);
+
+  // Attach card 4003
+  attachedSet.add(4003);
+  unattached = currentNotes.filter(id => !baselineSet.has(id) && !attachedSet.has(id));
+  assert.deepStrictEqual(unattached, []);
+  console.log('✔ Test 2.13: Multi-card baseline & unattached filtering logic passed');
 
   console.log('\nAll AnkiConnect unit tests passed successfully!');
 }

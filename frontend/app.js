@@ -11,9 +11,10 @@ let isLinesMerged = false;
 let currentFilter = 'normal';
 let isAutoAttachEnabled = false;
 let pollingInterval = null;
-let pollingCountdownInterval = null;
-let snapshotNoteIds = new Set();
+let captureBaselineNoteIds = new Set();
+let attachedNoteIds = new Set();
 let isPolling = false;
+let isEditingOcr = false;
 
 // Text Focus (Box) State
 let currentCropMode = 'crop'; // 'crop' | 'trace'
@@ -53,6 +54,9 @@ const elements = {
   loadingMessage: document.getElementById('loadingMessage'),
   ocrCard: document.getElementById('ocrCard'),
   ocrText: document.getElementById('ocrText'),
+  ocrTextContainer: document.getElementById('ocrTextContainer'),
+  ocrTextInput: document.getElementById('ocrTextInput'),
+  ocrEditHint: document.getElementById('ocrEditHint'),
   detectedLangBadge: document.getElementById('detectedLangBadge'),
   focusedOcrBadge: document.getElementById('focusedOcrBadge'),
   btnToggleAutoAttach: document.getElementById('btnToggleAutoAttach'),
@@ -61,9 +65,11 @@ const elements = {
   pollingCountdown: document.getElementById('pollingCountdown'),
   btnCancelPolling: document.getElementById('btnCancelPolling'),
   btnToggleMergeLines: document.getElementById('btnToggleMergeLines'),
+  btnEditOcrText: document.getElementById('btnEditOcrText'),
   btnCopyText: document.getElementById('btnCopyText'),
   cropPreviewImg: document.getElementById('cropPreviewImg'),
   btnAttachAnki: document.getElementById('btnAttachAnki'),
+  btnAdjustCrop: document.getElementById('btnAdjustCrop'),
   btnNewCapture: document.getElementById('btnNewCapture'),
 
   btnSettings: document.getElementById('btnSettings'),
@@ -249,6 +255,10 @@ function switchStage(stageName) {
     }
   });
 
+  if (stageName !== 'result') {
+    stopAutoAttachPolling();
+  }
+
   // Automatically hide the header when engaging with crop or result stages, restore on capture stage
   const header = elements.appHeader || document.querySelector('.app-header');
   if (header) {
@@ -385,50 +395,62 @@ async function startAutoAttachPolling() {
 
   try {
     const existingIds = await AnkiConnect.getRecentNoteIds();
-    snapshotNoteIds = new Set(existingIds);
+    // Establish baseline snapshot if not already initialized for this capture
+    if (!captureBaselineNoteIds || captureBaselineNoteIds.size === 0) {
+      captureBaselineNoteIds = new Set(existingIds);
+    }
   } catch (e) {
     console.warn('Could not take AnkiConnect note snapshot:', e);
-    snapshotNoteIds = new Set();
   }
 
   isPolling = true;
-  let remainingSeconds = 45;
-
-  elements.pollingCountdown.textContent = `Tap word in Yomitan to create card (${remainingSeconds}s left)`;
+  updatePollingBannerText();
   elements.pollingBanner.classList.remove('hidden');
-  elements.btnAttachAnki.innerHTML = '<span class="btn-text">⏳ Waiting for Yomitan...</span>';
-  elements.btnAttachAnki.disabled = true;
 
-  pollingCountdownInterval = setInterval(() => {
-    remainingSeconds -= 1;
-    if (remainingSeconds <= 0) {
-      stopAutoAttachPolling();
-      showToast('Auto-attach timed out. You can tap "Attach Image" manually.', 'info', 4500);
-      elements.btnAttachAnki.disabled = false;
-      elements.btnAttachAnki.innerHTML = '<span class="btn-text">📎 Attach Image to Card</span>';
-    } else {
-      elements.pollingCountdown.textContent = `Tap word in Yomitan to create card (${remainingSeconds}s left)`;
-    }
-  }, 1000);
+  updateAttachButtonState();
+  resumeAutoAttachPolling();
+}
 
+function updatePollingBannerText() {
+  if (!elements.pollingCountdown) return;
+  if (attachedNoteIds.size > 0) {
+    elements.pollingCountdown.textContent = `✓ Auto-attached to ${attachedNoteIds.size} card(s). Waiting for more in Yomitan...`;
+  } else {
+    elements.pollingCountdown.textContent = 'Auto-attach active. Tap words in Yomitan to create cards.';
+  }
+}
+
+function updateAttachButtonState() {
+  if (!elements.btnAttachAnki) return;
+  elements.btnAttachAnki.disabled = false;
+  if (attachedNoteIds.size > 0) {
+    elements.btnAttachAnki.innerHTML = `<span class="btn-text">✓ Attached (${attachedNoteIds.size}) · Add Next</span>`;
+  } else {
+    elements.btnAttachAnki.innerHTML = '<span class="btn-text">📎 Attach Image to Card</span>';
+  }
+}
+
+function resumeAutoAttachPolling() {
+  if (pollingInterval) clearInterval(pollingInterval);
   pollingInterval = setInterval(async () => {
-    if (!isPolling) return;
+    if (!isPolling || document.hidden) return;
     try {
       const currentIds = await AnkiConnect.getRecentNoteIds();
-      const newIds = currentIds.filter(id => !snapshotNoteIds.has(id));
+      const newIds = currentIds.filter(id => !captureBaselineNoteIds.has(id) && !attachedNoteIds.has(id));
       if (newIds.length > 0) {
-        newIds.sort((a, b) => b - a);
-        const targetNoteId = newIds[0];
+        // Sort ascending (oldest first) so cards are attached in creation sequence
+        newIds.sort((a, b) => a - b);
+        for (const targetNoteId of newIds) {
+          const result = await AnkiConnect.attachImageToNote(targetNoteId, currentCroppedBase64);
+          attachedNoteIds.add(targetNoteId);
+          playSound('success');
 
-        stopAutoAttachPolling();
+          const label = result.noteName ? `"${result.noteName}"` : `Note #${result.noteId}`;
+          showToast(`✅ Auto-attached to ${label} (${result.fieldUsed}) [Card #${attachedNoteIds.size}]`, 'success', 5000);
+        }
 
-        const result = await AnkiConnect.attachImageToNote(targetNoteId, currentCroppedBase64);
-        playSound('success');
-
-        const label = result.noteName ? `"${result.noteName}"` : `Note #${result.noteId}`;
-        showToast(`✅ Auto-attached to ${label} (${result.fieldUsed})`, 'success', 5000);
-        elements.btnAttachAnki.disabled = true;
-        elements.btnAttachAnki.innerHTML = '<span class="btn-text">✓ Auto-Attached to Card</span>';
+        updateAttachButtonState();
+        updatePollingBannerText();
       }
     } catch (e) {
       console.warn('Polling check error:', e);
@@ -442,19 +464,16 @@ function stopAutoAttachPolling() {
     clearInterval(pollingInterval);
     pollingInterval = null;
   }
-  if (pollingCountdownInterval) {
-    clearInterval(pollingCountdownInterval);
-    pollingCountdownInterval = null;
+  if (elements.pollingBanner) {
+    elements.pollingBanner.classList.add('hidden');
   }
-  elements.pollingBanner.classList.add('hidden');
 }
 
 function handleCancelPolling() {
   stopAutoAttachPolling();
-  elements.btnAttachAnki.disabled = false;
-  elements.btnAttachAnki.innerHTML = '<span class="btn-text">📎 Attach Image to Card</span>';
+  updateAttachButtonState();
   playSound('click');
-  showToast('Auto-attach cancelled. Manual attach available.', 'info');
+  showToast('Auto-attach paused. You can still attach manually.', 'info');
 }
 
 function toggleAutoAttach() {
@@ -491,6 +510,11 @@ function initKeyboardShortcuts() {
     const isTyping = e.target.matches('input, textarea, select');
 
     if (e.key === 'Escape') {
+      if (isEditingOcr) {
+        cancelOcrEdit();
+        e.preventDefault();
+        return;
+      }
       if (!elements.settingsModal.classList.contains('hidden')) {
         closeSettings();
         e.preventDefault();
@@ -538,6 +562,12 @@ function initKeyboardShortcuts() {
       if ((e.key === 'a' || e.key === 'A') && !elements.btnAttachAnki.disabled) {
         e.preventDefault();
         handleAttachToAnki();
+      } else if (e.key === 'e' || e.key === 'E') {
+        e.preventDefault();
+        toggleEditOcr();
+      } else if (e.key === 'c' || e.key === 'C') {
+        e.preventDefault();
+        handleAdjustCrop();
       } else if (e.key === 'n' || e.key === 'N') {
         e.preventDefault();
         handleNewCapture();
@@ -614,11 +644,44 @@ function initEventListeners() {
 
   // Results Controls
   if (elements.btnToggleMergeLines) elements.btnToggleMergeLines.addEventListener('click', toggleMergeLines);
+  if (elements.btnEditOcrText) elements.btnEditOcrText.addEventListener('click', toggleEditOcr);
   elements.btnCopyText.addEventListener('click', copyOcrText);
   elements.btnAttachAnki.addEventListener('click', handleAttachToAnki);
+  if (elements.btnAdjustCrop) elements.btnAdjustCrop.addEventListener('click', handleAdjustCrop);
   elements.btnNewCapture.addEventListener('click', handleNewCapture);
   elements.btnToggleAutoAttach.addEventListener('click', toggleAutoAttach);
   elements.btnCancelPolling.addEventListener('click', handleCancelPolling);
+
+  if (elements.ocrTextInput) {
+    elements.ocrTextInput.addEventListener('input', () => {
+      elements.ocrTextInput.style.height = 'auto';
+      elements.ocrTextInput.style.height = Math.max(90, elements.ocrTextInput.scrollHeight) + 'px';
+    });
+
+    elements.ocrTextInput.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        saveOcrEdit();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        cancelOcrEdit();
+      }
+    });
+  }
+
+  // Battery safeguard: Pause polling when page is in background, resume when active
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      if (isPolling && pollingInterval) {
+        clearInterval(pollingInterval);
+        pollingInterval = null;
+      }
+    } else {
+      if (isPolling && !pollingInterval && stages.result.classList.contains('active')) {
+        resumeAutoAttachPolling();
+      }
+    }
+  });
 
   // Settings Modal Controls
   if (elements.btnSettings) elements.btnSettings.addEventListener('click', openSettings);
@@ -1149,12 +1212,21 @@ async function handleCropSubmit() {
   applyCanvasFilter(ocrCanvas, currentFilter);
   const ocrPayload = ocrCanvas.toDataURL('image/jpeg', 0.95);
 
+  // Reset capture session attached notes and establish baseline for this crop
+  cancelOcrEdit();
+  attachedNoteIds.clear();
+  try {
+    const existing = await AnkiConnect.getRecentNoteIds();
+    captureBaselineNoteIds = new Set(existing);
+  } catch (_) {
+    captureBaselineNoteIds = new Set();
+  }
+
   // Transition to Results & Loading state
   switchStage('result');
   elements.loadingIndicator.classList.remove('hidden');
   elements.ocrCard.classList.add('hidden');
-  elements.btnAttachAnki.disabled = false;
-  elements.btnAttachAnki.innerHTML = '<span class="btn-text">📎 Attach Image to Card</span>';
+  updateAttachButtonState();
 
   if (elements.focusedOcrBadge) {
     elements.focusedOcrBadge.classList.toggle('hidden', !isTraceUsed);
@@ -1220,19 +1292,94 @@ async function handleAttachToAnki() {
     return;
   }
 
-  stopAutoAttachPolling();
-
   const btn = elements.btnAttachAnki;
   const originalHtml = btn.innerHTML;
   btn.disabled = true;
-  btn.innerHTML = '<span class="btn-text">⏳ Attaching...</span>';
+  btn.innerHTML = '<span class="btn-text">⏳ Checking Anki...</span>';
 
   try {
-    const result = await AnkiConnect.attachImageToLatestNote(currentCroppedBase64);
-    const label = result.noteName ? `"${result.noteName}"` : `Note #${result.noteId}`;
+    const currentIds = await AnkiConnect.getRecentNoteIds();
+    if (!currentIds || currentIds.length === 0) {
+      throw new Error('No recent Anki cards found today. Create a card with Yomitan first!');
+    }
+
+    // Filter for cards added since this capture began that haven't been attached yet
+    const unattachedNewIds = currentIds.filter(id => !captureBaselineNoteIds.has(id) && !attachedNoteIds.has(id));
+
+    let targetNoteId = null;
+
+    if (unattachedNewIds.length > 0) {
+      // Pick newest unattached card
+      unattachedNewIds.sort((a, b) => b - a);
+      targetNoteId = unattachedNewIds[0];
+    } else {
+      // If all cards created during this capture session were already attached:
+      if (attachedNoteIds.size > 0) {
+        btn.disabled = false;
+        btn.innerHTML = originalHtml;
+        playSound('click');
+        showToast(`All cards mined for this image (${attachedNoteIds.size}) already have pictures attached. Tap a new word in Yomitan first!`, 'info', 4500);
+        return;
+      }
+
+      // Check if the latest card in Anki matches the current image text (e.g. photo taken right after mining)
+      currentIds.sort((a, b) => b - a);
+      const latestNoteId = currentIds[0];
+      const noteInfo = await AnkiConnect.getNoteInfo(latestNoteId);
+      const fields = noteInfo.fields || {};
+
+      // Check if picture field is already filled
+      const config = AnkiConnect.getConfig();
+      const picField = config.pictureField;
+      let existingPic = '';
+      if (picField in fields) {
+        existingPic = fields[picField]?.value || '';
+      } else {
+        const candidate = Object.keys(fields).find(k => /picture|image|photo|screenshot/i.test(k));
+        if (candidate) existingPic = fields[candidate]?.value || '';
+      }
+
+      // Get expression / first field text
+      const firstVal = Object.values(fields)[0]?.value?.replace(/<[^>]+>/g, '').trim() || '';
+      const sentenceVal = fields['Sentence']?.value?.replace(/<[^>]+>/g, '').trim() || '';
+
+      const isTextMatch = (firstVal && (currentOcrText.includes(firstVal) || rawOcrText.includes(firstVal))) ||
+                          (sentenceVal && (currentOcrText.includes(sentenceVal) || rawOcrText.includes(sentenceVal)));
+
+      if (isTextMatch && !existingPic) {
+        // Safe match: note text matches current image OCR text and picture field is empty
+        targetNoteId = latestNoteId;
+      } else {
+        // Overwrite Guard: Stop and warn
+        btn.disabled = false;
+        btn.innerHTML = originalHtml;
+        playSound('error');
+        if (existingPic) {
+          showToast(`⚠️ No new card detected. Latest card "${firstVal}" already has a picture attached! Mine a new card with Yomitan first.`, 'error', 5500);
+        } else {
+          showToast(`⚠️ No new card detected for this image! Mine a word with Yomitan first.`, 'error', 5500);
+        }
+        return;
+      }
+    }
+
+    btn.innerHTML = '<span class="btn-text">⏳ Attaching...</span>';
+    const result = await AnkiConnect.attachImageToNote(targetNoteId, currentCroppedBase64);
+    attachedNoteIds.add(targetNoteId);
     playSound('success');
-    showToast(`✅ Image attached to ${label} (${result.fieldUsed})`, 'success', 4500);
-    btn.innerHTML = '<span class="btn-text">✓ Attached to Card</span>';
+
+    const label = result.noteName ? `"${result.noteName}"` : `Note #${result.noteId}`;
+    showToast(`✅ Image attached to ${label} (${result.fieldUsed}) [Card #${attachedNoteIds.size}]`, 'success', 4500);
+
+    // Briefly show attached status, then update to ready state
+    btn.innerHTML = `<span class="btn-text">✓ Attached (${attachedNoteIds.size})</span>`;
+    setTimeout(() => {
+      if (stages.result.classList.contains('active')) {
+        updateAttachButtonState();
+      }
+    }, 1800);
+
+    updatePollingBannerText();
   } catch (err) {
     btn.disabled = false;
     btn.innerHTML = originalHtml;
@@ -1241,10 +1388,20 @@ async function handleAttachToAnki() {
   }
 }
 
+function handleAdjustCrop() {
+  stopAutoAttachPolling();
+  cancelOcrEdit();
+  switchStage('crop');
+  playSound('click');
+}
+
 function handleNewCapture() {
   stopAutoAttachPolling();
+  cancelOcrEdit();
   destroyCropper();
   currentCroppedBase64 = null;
+  captureBaselineNoteIds.clear();
+  attachedNoteIds.clear();
   rawOcrText = '';
   currentOcrText = '';
   isLinesMerged = false;
@@ -1254,11 +1411,77 @@ function handleNewCapture() {
     elements.btnToggleMergeLines.disabled = true;
   }
   elements.ocrText.textContent = '';
+  if (elements.ocrTextInput) elements.ocrTextInput.value = '';
   elements.cropPreviewImg.src = '';
-  elements.btnAttachAnki.disabled = false;
-  elements.btnAttachAnki.innerHTML = '<span class="btn-text">📎 Attach Image to Card</span>';
+  updateAttachButtonState();
   switchStage('capture');
   playSound('click');
+}
+
+// ==========================================
+// OCR Text Inline Editing
+// ==========================================
+function toggleEditOcr() {
+  if (isEditingOcr) {
+    saveOcrEdit();
+  } else {
+    enterOcrEdit();
+  }
+}
+
+function enterOcrEdit() {
+  if (!stages.result.classList.contains('active')) return;
+  isEditingOcr = true;
+  if (elements.ocrTextInput) {
+    elements.ocrTextInput.value = currentOcrText || rawOcrText;
+  }
+  if (elements.ocrText) elements.ocrText.classList.add('hidden');
+  if (elements.ocrTextInput) elements.ocrTextInput.classList.remove('hidden');
+  if (elements.ocrTextContainer) elements.ocrTextContainer.classList.add('editing');
+  if (elements.ocrEditHint) elements.ocrEditHint.classList.remove('hidden');
+
+  if (elements.btnEditOcrText) {
+    elements.btnEditOcrText.classList.add('active');
+    elements.btnEditOcrText.textContent = '✓ Done';
+    elements.btnEditOcrText.title = 'Save edited text (Ctrl+Enter)';
+  }
+
+  if (elements.ocrTextInput) {
+    elements.ocrTextInput.style.height = 'auto';
+    elements.ocrTextInput.style.height = Math.max(90, elements.ocrTextInput.scrollHeight) + 'px';
+    elements.ocrTextInput.focus();
+    const len = elements.ocrTextInput.value.length;
+    elements.ocrTextInput.setSelectionRange(len, len);
+  }
+
+  playSound('click');
+}
+
+function saveOcrEdit() {
+  if (!isEditingOcr) return;
+  if (elements.ocrTextInput) {
+    const newText = elements.ocrTextInput.value.trim();
+    rawOcrText = newText;
+    applyLineMergeState();
+  }
+
+  cancelOcrEdit(false);
+  playSound('pop');
+  showToast('Text updated! Ready for Yomitan.', 'info', 2500);
+}
+
+function cancelOcrEdit(silent = true) {
+  isEditingOcr = false;
+  if (elements.ocrTextInput) elements.ocrTextInput.classList.add('hidden');
+  if (elements.ocrText) elements.ocrText.classList.remove('hidden');
+  if (elements.ocrTextContainer) elements.ocrTextContainer.classList.remove('editing');
+  if (elements.ocrEditHint) elements.ocrEditHint.classList.add('hidden');
+
+  if (elements.btnEditOcrText) {
+    elements.btnEditOcrText.classList.remove('active');
+    elements.btnEditOcrText.textContent = '✏️ Edit';
+    elements.btnEditOcrText.title = 'Edit extracted text (E)';
+  }
 }
 
 function copyOcrText() {

@@ -171,6 +171,16 @@ const AnkiConnect = {
       }
     });
 
+    // Tag note with 'cardlens' for easy filtering and tracking
+    try {
+      await this.invoke('addTags', {
+        notes: [noteId],
+        tags: 'cardlens'
+      });
+    } catch (tagErr) {
+      console.warn('Could not add cardlens tag to note:', tagErr);
+    }
+
     const firstFieldValue = Object.values(currentFields)[0]?.value?.replace(/<[^>]+>/g, '').trim() || '';
 
     return {

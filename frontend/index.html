@@ -150,15 +150,18 @@
             </div>
             <div class="result-actions">
               <button type="button" id="btnToggleMergeLines" class="btn btn-small btn-secondary" title="Merge or split linebreaks for Yomitan scanning">☵ Join</button>
+              <button type="button" id="btnEditOcrText" class="btn btn-small btn-secondary" title="Edit extracted text (E)">✏️ Edit</button>
               <button id="btnCopyText" class="btn btn-small btn-secondary" title="Copy text to clipboard">📋 Copy</button>
               <button type="button" id="btnSettingsResult" class="icon-btn-compact" title="Settings" aria-label="Settings">⚙️</button>
             </div>
           </div>
 
           <!-- Selectable Japanese text container for Yomitan -->
-          <div class="ocr-text-container">
+          <div class="ocr-text-container" id="ocrTextContainer">
             <p id="ocrText" class="ocr-text" tabindex="0" lang="ja"></p>
+            <textarea id="ocrTextInput" class="ocr-text-input hidden" lang="ja" spellcheck="false" placeholder="Edit Japanese text here..."></textarea>
           </div>
+          <div id="ocrEditHint" class="edit-hint hidden">💡 Edit text directly above. Click <strong>✓ Done</strong> (or press Ctrl+Enter) to save for Yomitan.</div>
 
           <!-- Auto-Attach Polling Indicator Banner -->
           <div id="pollingBanner" class="polling-banner hidden">
@@ -184,6 +187,9 @@
             <div class="dock-buttons">
               <button id="btnAttachAnki" class="btn btn-accent btn-large" title="Attach image to card (A)">
                 <span class="btn-text">📎 Attach Image to Card</span>
+              </button>
+              <button id="btnAdjustCrop" class="btn btn-secondary" title="Adjust Crop on current image (C)">
+                <span>✂️ Adjust Crop</span>
               </button>
               <button id="btnNewCapture" class="btn btn-secondary" title="New Capture (N)">
                 <span>🔄 New Capture</span>
