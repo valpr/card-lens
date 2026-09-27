@@ -1,8 +1,39 @@
 /**
- * AnkiConnect Android Client
- * Handles communication with AnkiConnect on localhost:8765
+ * AnkiConnect Client (Desktop & Mobile)
+ * Handles communication with AnkiConnect on localhost:8765 or via local proxy
  */
 const AnkiConnect = {
+  // Anki Desktop add-on code for 1-click copy & onboarding
+  DESKTOP_ADDON_CODE: '2055492159',
+
+  isMobileDevice(customUserAgent = null) {
+    const ua = customUserAgent !== null ? customUserAgent : (typeof navigator !== 'undefined' ? navigator.userAgent || '' : '');
+    return /Android|iPhone|iPad|iPod/i.test(ua);
+  },
+
+  getConnectionErrorMessage(url, isMobile = null) {
+    const mobile = isMobile !== null ? isMobile : this.isMobileDevice();
+    if (mobile) {
+      return `Cannot connect to AnkiConnect at ${url}. Ensure the AnkiConnect Android app is open and service is Started.`;
+    }
+    return `Cannot connect to AnkiConnect at ${url}. Ensure Anki Desktop is running with the Anki-Connect add-on installed (code: 2055492159).`;
+  },
+
+  getProxyUrl() {
+    if (typeof window !== 'undefined' && window.location && window.location.origin) {
+      return '/api/ankiconnect';
+    }
+    return null;
+  },
+
+  getWorkflowMode() {
+    return localStorage.getItem('cardlens_workflow_mode') || 'ankiconnect';
+  },
+
+  setWorkflowMode(mode) {
+    localStorage.setItem('cardlens_workflow_mode', mode || 'ankiconnect');
+  },
+
   // Config defaults stored in localStorage
   getConfig() {
     const storedDeck = localStorage.getItem('anki_deck');
@@ -11,16 +42,18 @@ const AnkiConnect = {
       deck: storedDeck !== null ? storedDeck : 'Mining',
       pictureField: localStorage.getItem('anki_field') || 'Picture',
       autoAttach: localStorage.getItem('anki_auto_attach') === 'true',
-      formatTemplate: localStorage.getItem('anki_format_template') || '<img src="{filename}">'
+      formatTemplate: localStorage.getItem('anki_format_template') || '<img src="{filename}">',
+      workflowMode: this.getWorkflowMode()
     };
   },
 
-  saveConfig({ url, deck, pictureField, autoAttach, formatTemplate }) {
+  saveConfig({ url, deck, pictureField, autoAttach, formatTemplate, workflowMode }) {
     if (url) localStorage.setItem('anki_url', url.trim());
     if (deck !== undefined && deck !== null) localStorage.setItem('anki_deck', deck.trim());
     if (pictureField) localStorage.setItem('anki_field', pictureField.trim());
     if (autoAttach !== undefined) localStorage.setItem('anki_auto_attach', autoAttach ? 'true' : 'false');
     if (formatTemplate !== undefined) localStorage.setItem('anki_format_template', formatTemplate.trim());
+    if (workflowMode !== undefined) this.setWorkflowMode(workflowMode);
   },
 
   isSetupCompleted() {
@@ -34,6 +67,35 @@ const AnkiConnect = {
   async invoke(action, params = {}, version = 6) {
     const config = this.getConfig();
     let response;
+    const proxyUrl = this.getProxyUrl();
+
+    // 1. Try local server proxy first if running in browser (eliminates desktop CORS restriction)
+    if (proxyUrl) {
+      try {
+        response = await fetch(proxyUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Anki-Url': config.url
+          },
+          body: JSON.stringify({ action, version, params, ankiUrl: config.url })
+        });
+        if (response.ok) {
+          const data = await response.json();
+          if (data.error) {
+            throw new Error(`AnkiConnect error: ${data.error}`);
+          }
+          return data.result;
+        }
+      } catch (proxyErr) {
+        if (proxyErr.message && proxyErr.message.startsWith('AnkiConnect error:')) {
+          throw proxyErr;
+        }
+        // Fallback to direct fetch on network/proxy failure
+      }
+    }
+
+    // 2. Direct fetch fallback
     try {
       response = await fetch(config.url, {
         method: 'POST',
@@ -43,7 +105,7 @@ const AnkiConnect = {
         body: JSON.stringify({ action, version, params })
       });
     } catch (err) {
-      throw new Error(`Cannot connect to AnkiConnect at ${config.url}. Ensure AnkiConnect Android service is started.`);
+      throw new Error(this.getConnectionErrorMessage(config.url));
     }
 
     if (!response.ok) {

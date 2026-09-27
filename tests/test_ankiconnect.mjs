@@ -283,6 +283,25 @@ async function runTests() {
   assert.deepStrictEqual(unattached, []);
   console.log('✔ Test 2.13: Multi-card baseline & unattached filtering logic passed');
 
+  // Test 14: Workflow mode get / set
+  assert.strictEqual(window.AnkiConnect.getWorkflowMode(), 'ankiconnect');
+  window.AnkiConnect.setWorkflowMode('clipboard');
+  assert.strictEqual(window.AnkiConnect.getWorkflowMode(), 'clipboard');
+  window.AnkiConnect.saveConfig({ workflowMode: 'ankiconnect' });
+  assert.strictEqual(window.AnkiConnect.getWorkflowMode(), 'ankiconnect');
+  console.log('✔ Test 2.14: Workflow mode saving and retrieval passed');
+
+  // Test 15: Platform-aware error messages & desktop add-on code
+  assert.strictEqual(window.AnkiConnect.DESKTOP_ADDON_CODE, '2055492159');
+  const desktopMsg = window.AnkiConnect.getConnectionErrorMessage('http://localhost:8765', false);
+  assert.ok(desktopMsg.includes('2055492159'));
+  assert.ok(desktopMsg.includes('Anki Desktop'));
+
+  const mobileMsg = window.AnkiConnect.getConnectionErrorMessage('http://localhost:8765', true);
+  assert.ok(mobileMsg.includes('AnkiConnect Android'));
+  assert.ok(mobileMsg.includes('Cannot connect to AnkiConnect'));
+  console.log('✔ Test 2.15: Platform-aware connection error messages passed');
+
   console.log('\nAll AnkiConnect unit tests passed successfully!');
 }
 

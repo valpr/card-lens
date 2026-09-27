@@ -189,6 +189,9 @@
               <button id="btnAttachAnki" class="btn btn-accent btn-large" title="Attach image to card (A)">
                 <span class="btn-text">📎 Attach Image to Card</span>
               </button>
+              <button id="btnCopyCropImage" class="btn btn-secondary" title="Copy cropped image to clipboard (I)">
+                <span>📋 Copy Image</span>
+              </button>
               <button id="btnAdjustCrop" class="btn btn-secondary" title="Adjust Crop on current image (C)">
                 <span>✂️ Adjust Crop</span>
               </button>
@@ -208,7 +211,7 @@
         <div class="modal-header">
           <div style="display: flex; align-items: center; gap: 8px;">
             <h2 id="settingsModalTitle">Settings</h2>
-            <span class="badge badge-subtle">v0.4.1</span>
+            <span class="badge badge-subtle">v0.4.3</span>
           </div>
           <button id="btnCloseSettings" class="icon-btn" aria-label="Close settings">✕</button>
         </div>
@@ -227,14 +230,34 @@
           </div>
         </div>
 
+        <!-- PC Add-on Helper Banner -->
+        <div class="settings-helper-card" id="settingsPcHelper">
+          <div class="helper-text">
+            💻 <strong>PC Users:</strong> Install the Anki Desktop add-on:
+          </div>
+          <div class="addon-code-inline">
+            <code>2055492159</code>
+            <button type="button" id="btnSettingsCopyAddonCode" class="btn btn-secondary btn-tiny" title="Copy add-on code">📋 Copy Code</button>
+          </div>
+        </div>
+
         <form id="settingsForm" class="settings-form">
+          <div class="form-group">
+            <label for="selectWorkflowMode">Card Mining Workflow</label>
+            <select id="selectWorkflowMode">
+              <option value="ankiconnect">AnkiConnect Mode (1-Tap &amp; Auto-Attach to Anki)</option>
+              <option value="clipboard">Clipboard Mode (Copy Cropped Image &amp; Text for Manual Paste)</option>
+            </select>
+            <small class="form-hint" id="workflowModeHint">Use AnkiConnect for automated card attachment, or Clipboard mode to copy images and paste with Ctrl+V.</small>
+          </div>
+
           <div class="form-group">
             <label for="inputAnkiUrl">AnkiConnect URL</label>
             <div class="input-with-button">
               <input type="url" id="inputAnkiUrl" value="http://localhost:8765" placeholder="http://localhost:8765" required>
               <button type="button" id="btnFetchAnkiData" class="btn btn-secondary btn-small" title="Load decks & fields from Anki">Load</button>
             </div>
-            <small class="form-hint">Standard port for AnkiConnect Android</small>
+            <small class="form-hint">Standard port for Anki Desktop (AnkiConnect add-on) or AnkiConnect Android</small>
           </div>
 
           <div class="form-group">
@@ -317,81 +340,227 @@
         <div class="modal-header">
           <div>
             <span class="badge">Initial Setup</span>
-            <h2 id="wizardTitle">Connect to Anki</h2>
+            <h2 id="wizardTitle">Welcome to CardLens</h2>
           </div>
           <button id="btnSkipWizard" class="icon-btn" title="Skip setup" aria-label="Skip">✕</button>
         </div>
 
-        <p class="wizard-subtitle">Choose how you'd like to configure your Anki deck and picture fields:</p>
+        <p class="wizard-subtitle">Choose your setup mode to start mining cards in seconds:</p>
 
-        <!-- Option 1: Live AnkiConnect Detection (Recommended) -->
-        <div class="wizard-card-option" id="wizardOptionAnki">
-          <div class="option-header">
-            <span class="option-badge">Recommended</span>
-            <h3>🔌 Option 1: Live AnkiConnect Auto-Detection</h3>
-          </div>
-          <p class="option-desc">Connect directly to AnkiDroid / AnkiConnect (<code>localhost:8765</code>):</p>
-
-          <div class="wizard-actions">
-            <button type="button" id="btnWizardAutoDetect" class="btn btn-primary btn-small" style="width: 100%; margin-bottom: 12px; font-weight: 600;">
-              ✨ Auto-Detect from Recent Anki Card
-            </button>
-          </div>
-
-          <div class="wizard-fields-grid">
-            <div class="form-group">
-              <label for="wizardDeckSelect">Target Deck:</label>
-              <select id="wizardDeckSelect">
-                <option value="Mining">Mining (Default)</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label for="wizardFieldSelect">Picture Field:</label>
-              <select id="wizardFieldSelect">
-                <option value="Picture">Picture (Default)</option>
-              </select>
-            </div>
-          </div>
-
-          <button type="button" id="btnApplyAnkiDiscovery" class="btn btn-secondary btn-small" style="width: 100%; margin-top: 8px;">
-            Save & Finish Setup
+        <!-- Platform Switcher Tabs -->
+        <div class="wizard-platform-tabs" role="tablist">
+          <button type="button" class="wizard-tab-btn active" id="wizardTabDesktop" role="tab" aria-selected="true">
+            💻 PC / Desktop (Anki)
+          </button>
+          <button type="button" class="wizard-tab-btn" id="wizardTabMobile" role="tab" aria-selected="false">
+            📱 Mobile (Android)
           </button>
         </div>
 
-        <div class="wizard-divider">
-          <span>OR</span>
-        </div>
-
-        <!-- Option 2: Yomitan Settings Import -->
-        <div class="wizard-card-option" id="wizardOptionYomitan">
-          <div class="option-header">
-            <h3>⚡ Option 2: Import Yomitan Settings JSON</h3>
-          </div>
-          <p class="option-desc">Export your settings in Yomitan (<em>Settings → Backup → Export Settings</em>) and upload the file below:</p>
-          
-          <label class="wizard-file-drop" id="wizardDropZone">
-            <div class="drop-content">
-              <span class="drop-icon">📁</span>
-              <span class="drop-prompt">Choose or drop <strong>yomitan-settings.json</strong></span>
+        <!-- PC / Desktop Tab Content -->
+        <div id="wizardDesktopPanel" class="wizard-panel">
+          <!-- Desktop Option 1: Live Anki Desktop Connection -->
+          <div class="wizard-card-option" id="wizardOptionDesktopAnki">
+            <div class="option-header">
+              <span class="option-badge">Recommended</span>
+              <h3>🔌 Option 1: Connect to Anki Desktop</h3>
             </div>
-            <input type="file" id="wizardYomitanFileInput" accept=".json" class="visually-hidden">
-          </label>
-
-          <!-- Yomitan Preview Confirmation Box -->
-          <div id="yomitanPreviewBox" class="preview-box hidden">
-            <div class="preview-title">✓ Detected Yomitan Settings — Please Review & Confirm:</div>
-            <div class="preview-grid">
-              <div><strong>Deck:</strong> <span id="yomitanPreviewDeck">-</span></div>
-              <div><strong>Note Type:</strong> <span id="yomitanPreviewModel">-</span></div>
-              <div class="preview-field-row" style="grid-column: span 2; margin-top: 4px;">
-                <label for="yomitanPreviewFieldSelect" style="display: block; font-size: 0.8rem; margin-bottom: 4px; color: var(--text-secondary);">
-                  <strong>Picture Field:</strong> (Review or change field)
-                </label>
-                <select id="yomitanPreviewFieldSelect" style="width: 100%; font-size: 0.85rem; padding: 6px 8px;"></select>
+            <p class="option-desc">Connect directly to Anki Desktop on your PC (<code>localhost:8765</code>):</p>
+            
+            <div class="pc-steps-box">
+              <div class="pc-step-item">
+                <span class="step-num">1</span>
+                <span>In Anki Desktop: <strong>Tools → Add-ons</strong> (<code>Ctrl+Shift+A</code>).</span>
+              </div>
+              <div class="pc-step-item">
+                <span class="step-num">2</span>
+                <span>Click <strong>Get Add-ons...</strong> and enter code:</span>
+                <div class="addon-code-inline" style="margin-left: auto;">
+                  <code>2055492159</code>
+                  <button type="button" id="btnWizardCopyAddonCode" class="btn btn-secondary btn-tiny" title="Copy add-on code">📋 Copy</button>
+                </div>
+              </div>
+              <div class="pc-step-item">
+                <span class="step-num">3</span>
+                <span>Restart Anki and keep it open in the background!</span>
               </div>
             </div>
-            <button type="button" id="btnApplyYomitanConfig" class="btn btn-accent btn-small" style="margin-top: 12px; width: 100%;">
-              ✓ Confirm & Apply Settings
+
+            <div class="wizard-actions">
+              <button type="button" id="btnWizardAutoDetectDesktop" class="btn btn-primary btn-small" style="width: 100%; margin-bottom: 12px; font-weight: 600;">
+                ✨ Auto-Detect from Recent Anki Card
+              </button>
+            </div>
+
+            <div class="wizard-fields-grid">
+              <div class="form-group">
+                <label for="wizardDeckSelectDesktop">Target Deck:</label>
+                <select id="wizardDeckSelectDesktop">
+                  <option value="Mining">Mining (Default)</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="wizardFieldSelectDesktop">Picture Field:</label>
+                <select id="wizardFieldSelectDesktop">
+                  <option value="Picture">Picture (Default)</option>
+                </select>
+              </div>
+            </div>
+
+            <button type="button" id="btnApplyDesktopAnki" class="btn btn-secondary btn-small" style="width: 100%; margin-top: 8px;">
+              Save & Finish Setup
+            </button>
+          </div>
+
+          <div class="wizard-divider">
+            <span>OR</span>
+          </div>
+
+          <!-- Desktop Option 2: Clipboard Mode (Zero setup) -->
+          <div class="wizard-card-option" id="wizardOptionClipboard">
+            <div class="option-header">
+              <span class="option-badge option-badge-cyan">Zero Setup</span>
+              <h3>⚡ Option 2: Clipboard Mode (No AnkiConnect Needed)</h3>
+            </div>
+            <p class="option-desc">
+              Don't have AnkiConnect? No problem! Use CardLens in standalone Clipboard mode:
+            </p>
+            <ul class="clipboard-feature-list">
+              <li>📋 Paste screenshots directly (<code>Ctrl+V</code>) into CardLens</li>
+              <li>🔍 Scan text with Google Lens OCR & hover with Yomitan</li>
+              <li>🖼️ 1-Click <strong>Copy Image (I)</strong> or <strong>Copy Text</strong> to paste (<code>Ctrl+V</code>) into Anki Desktop</li>
+            </ul>
+            <button type="button" id="btnStartClipboardModeDesktop" class="btn btn-accent btn-small" style="width: 100%; margin-top: 8px;">
+              ⚡ Start in Clipboard Mode
+            </button>
+          </div>
+
+          <div class="wizard-divider">
+            <span>OR</span>
+          </div>
+
+          <!-- Desktop Option 3: Yomitan Settings Import -->
+          <div class="wizard-card-option" id="wizardOptionYomitanDesktop">
+            <div class="option-header">
+              <h3>📁 Option 3: Import Yomitan Settings JSON</h3>
+            </div>
+            <p class="option-desc">Export your settings in Yomitan (<em>Settings → Backup → Export Settings</em>) and upload below:</p>
+            
+            <label class="wizard-file-drop" id="wizardDropZoneDesktop">
+              <div class="drop-content">
+                <span class="drop-icon">📁</span>
+                <span class="drop-prompt">Choose or drop <strong>yomitan-settings.json</strong></span>
+              </div>
+              <input type="file" id="wizardYomitanFileInputDesktop" accept=".json" class="visually-hidden">
+            </label>
+
+            <!-- Yomitan Preview Confirmation Box -->
+            <div id="yomitanPreviewBoxDesktop" class="preview-box hidden">
+              <div class="preview-title">✓ Detected Yomitan Settings — Please Review & Confirm:</div>
+              <div class="preview-grid">
+                <div><strong>Deck:</strong> <span id="yomitanPreviewDeckDesktop">-</span></div>
+                <div><strong>Note Type:</strong> <span id="yomitanPreviewModelDesktop">-</span></div>
+                <div class="preview-field-row" style="grid-column: span 2; margin-top: 4px;">
+                  <label for="yomitanPreviewFieldSelectDesktop" style="display: block; font-size: 0.8rem; margin-bottom: 4px; color: var(--text-secondary);">
+                    <strong>Picture Field:</strong> (Review or change field)
+                  </label>
+                  <select id="yomitanPreviewFieldSelectDesktop" style="width: 100%; font-size: 0.85rem; padding: 6px 8px;"></select>
+                </div>
+              </div>
+              <button type="button" id="btnApplyYomitanConfigDesktop" class="btn btn-accent btn-small" style="margin-top: 12px; width: 100%;">
+                ✓ Confirm & Apply Settings
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Mobile / Android Tab Content -->
+        <div id="wizardMobilePanel" class="wizard-panel hidden">
+          <!-- Mobile Option 1: Live AnkiConnect Android -->
+          <div class="wizard-card-option" id="wizardOptionMobileAnki">
+            <div class="option-header">
+              <span class="option-badge">Recommended</span>
+              <h3>🔌 Option 1: Live AnkiConnect Android</h3>
+            </div>
+            <p class="option-desc">Connect directly to AnkiDroid / AnkiConnect Android (<code>localhost:8765</code>):</p>
+
+            <div class="wizard-actions">
+              <button type="button" id="btnWizardAutoDetectMobile" class="btn btn-primary btn-small" style="width: 100%; margin-bottom: 12px; font-weight: 600;">
+                ✨ Auto-Detect from Recent Anki Card
+              </button>
+            </div>
+
+            <div class="wizard-fields-grid">
+              <div class="form-group">
+                <label for="wizardDeckSelectMobile">Target Deck:</label>
+                <select id="wizardDeckSelectMobile">
+                  <option value="Mining">Mining (Default)</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="wizardFieldSelectMobile">Picture Field:</label>
+                <select id="wizardFieldSelectMobile">
+                  <option value="Picture">Picture (Default)</option>
+                </select>
+              </div>
+            </div>
+
+            <button type="button" id="btnApplyMobileAnki" class="btn btn-secondary btn-small" style="width: 100%; margin-top: 8px;">
+              Save & Finish Setup
+            </button>
+          </div>
+
+          <div class="wizard-divider">
+            <span>OR</span>
+          </div>
+
+          <!-- Mobile Option 2: Yomitan Import -->
+          <div class="wizard-card-option" id="wizardOptionYomitanMobile">
+            <div class="option-header">
+              <h3>📁 Option 2: Import Yomitan Settings JSON</h3>
+            </div>
+            <p class="option-desc">Export your settings in Yomitan (<em>Settings → Backup → Export Settings</em>) and upload below:</p>
+            
+            <label class="wizard-file-drop" id="wizardDropZoneMobile">
+              <div class="drop-content">
+                <span class="drop-icon">📁</span>
+                <span class="drop-prompt">Choose or drop <strong>yomitan-settings.json</strong></span>
+              </div>
+              <input type="file" id="wizardYomitanFileInputMobile" accept=".json" class="visually-hidden">
+            </label>
+
+            <!-- Yomitan Preview Confirmation Box -->
+            <div id="yomitanPreviewBoxMobile" class="preview-box hidden">
+              <div class="preview-title">✓ Detected Yomitan Settings — Please Review & Confirm:</div>
+              <div class="preview-grid">
+                <div><strong>Deck:</strong> <span id="yomitanPreviewDeckMobile">-</span></div>
+                <div><strong>Note Type:</strong> <span id="yomitanPreviewModelMobile">-</span></div>
+                <div class="preview-field-row" style="grid-column: span 2; margin-top: 4px;">
+                  <label for="yomitanPreviewFieldSelectMobile" style="display: block; font-size: 0.8rem; margin-bottom: 4px; color: var(--text-secondary);">
+                    <strong>Picture Field:</strong> (Review or change field)
+                  </label>
+                  <select id="yomitanPreviewFieldSelectMobile" style="width: 100%; font-size: 0.85rem; padding: 6px 8px;"></select>
+                </div>
+              </div>
+              <button type="button" id="btnApplyYomitanConfigMobile" class="btn btn-accent btn-small" style="margin-top: 12px; width: 100%;">
+                ✓ Confirm & Apply Settings
+              </button>
+            </div>
+          </div>
+
+          <div class="wizard-divider">
+            <span>OR</span>
+          </div>
+
+          <!-- Mobile Option 3: Clipboard Mode -->
+          <div class="wizard-card-option">
+            <div class="option-header">
+              <span class="option-badge option-badge-cyan">Zero Setup</span>
+              <h3>⚡ Option 3: Clipboard Mode</h3>
+            </div>
+            <p class="option-desc">Use CardLens without AnkiConnect to copy text and cropped images.</p>
+            <button type="button" id="btnStartClipboardModeMobile" class="btn btn-secondary btn-small" style="width: 100%; margin-top: 4px;">
+              ⚡ Start in Clipboard Mode
             </button>
           </div>
         </div>
@@ -407,7 +576,7 @@
   </div>
 
   <script src="/vendor/cropperjs/cropper.min.js"></script>
-  <script src="/ankiconnect.js?v=0.4.2"></script>
-  <script src="/app.js?v=0.4.2"></script>
+  <script src="/ankiconnect.js?v=0.4.3"></script>
+  <script src="/app.js?v=0.4.3"></script>
 </body>
 </html>

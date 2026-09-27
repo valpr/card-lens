@@ -125,7 +125,7 @@ Pick whichever method you prefer:
 
 ### 2. Desktop Setup (Windows / macOS / Linux)
 
-You can also run CardLens on your computer to mine cards from PC games, emulators, or manga readers:
+You can run CardLens on your computer to mine cards from PC games, visual novels, emulators, or manga readers:
 
 1. **Clone & Install Dependencies:**
    ```bash
@@ -143,42 +143,48 @@ You can also run CardLens on your computer to mine cards from PC games, emulator
    - Navigate to `http://localhost:5050` in your browser.
    - Use clipboard paste (`Ctrl+V`) to paste any screenshot immediately into the cropper!
 
+#### 💻 PC Mining Workflows: Choose What Works Best for You
+
+CardLens on PC supports two streamlined workflows:
+
+- **Mode 1: Anki Desktop with AnkiConnect (Automated & 1-Tap Attach)**
+  1. In Anki Desktop, go to **Tools → Add-ons** (`Ctrl+Shift+A`).
+  2. Click **Get Add-ons...**, paste code **`2055492159`**, and restart Anki.
+  3. Keep Anki Desktop open in the background.
+  4. *Zero CORS Configuration:* CardLens includes a built-in transparent AnkiConnect proxy (`/api/ankiconnect`), so you never need to edit AnkiConnect's `webCorsOriginList`!
+  5. Use 1-tap **"📎 Attach Image to Card"** (or Auto-Attach) to attach crops directly to new Yomitan cards.
+
+- **Mode 2: Standalone Clipboard Mode (Zero Setup - No AnkiConnect Needed!)**
+  - Don't have AnkiConnect or prefer adding cards manually?
+  - Paste any screenshot (`Ctrl+V`) into CardLens and extract Japanese text with Google Lens OCR.
+  - Hover text with Yomitan to read definitions and create cards.
+  - 1-Click **"📋 Copy Image"** (or press `I`) or **"📋 Copy Text"** to copy the cropped panel straight to your clipboard and paste (`Ctrl+V`) directly into Anki Desktop's card fields!
+
 ---
 
-### 3. First-Time Setup & AnkiConnect Configuration
+### 3. First-Time Setup & Onboarding Wizard
 
-When you open `http://localhost:5050` for the first time, the **First-Time Setup Wizard** automatically welcomes you to configure your Anki deck and picture fields.
+When you open `http://localhost:5050` for the first time, the **Setup Wizard** welcomes you with dedicated platform tabs:
 
-You can configure your settings in **seconds** using either method:
+#### 💻 PC / Desktop Setup
+- **Option 1: Live Anki Desktop Connection:** Quickly copy the add-on code (`2055492159`), click **"✨ Auto-Detect from Recent Anki Card"**, and CardLens will automatically populate your target deck and picture field!
+- **Option 2: ⚡ Clipboard Mode:** 1-Click to activate standalone mode without AnkiConnect.
+- **Option 3: 📁 Import Yomitan Settings JSON:** Drop your `yomitan-settings.json` exported from Yomitan to configure deck/fields instantly.
 
-#### 🔌 Method A: Live AnkiConnect Auto-Detection (Recommended)
-If AnkiConnect Android is running (`http://localhost:8765`):
-1. Tap **"✨ Auto-Detect from Recent Anki Card"** in the wizard.
-2. CardLens queries your most recently created card in AnkiDroid and auto-populates the exact deck name and picture field used by your note model!
-3. Tap **"Save & Finish Setup"** — you're completely configured in one tap with zero manual typing!
-4. *(Optional)* You can also pick your deck and picture field directly from live dropdowns populated straight from Anki.
+#### 📱 Mobile (Android) Setup
+- **Option 1: Live AnkiConnect Android:** Connect directly to AnkiDroid / AnkiConnect Android (`localhost:8765`) and auto-detect your card.
+- **Option 2: 📁 Import Yomitan Settings JSON.**
+- **Option 3: ⚡ Clipboard Mode.**
 
-#### ⚡ Method B: Instant Yomitan Settings Import (Alternative)
-If you prefer configuring via your Yomitan profile:
-1. In Yomitan, export your settings:  
-   **Yomitan Settings → Backup → Export Settings** (downloads `yomitan-settings-YYYY-MM-DD.json`).
-2. In CardLens, drop or select this `.json` file in the setup wizard (or in **⚙️ Settings → Import Yomitan JSON**).
-3. CardLens automatically extracts:
-   - Your AnkiConnect server URL (`http://localhost:8765`)
-   - Your target Anki deck (e.g. `Mining` or `Japanese`)
-   - Your picture/screenshot field (e.g. `Picture`, `Image`, or `Screenshot`)
-   - Your note model (e.g. `Kaishi 1.5k`, `Animecards`)
-4. Review the detected settings and tap **"Confirm & Apply Settings"**.
-
-You can also re-run the wizard or adjust fields anytime by tapping the **⚙️ Settings** icon in the header.
+You can switch workflow modes or re-run the wizard anytime from the **⚙️ Settings** modal.
 
 ---
 
 ### 4. Install as a PWA (Home Screen)
 
-1. Open `http://localhost:5050` in Firefox on Android.
-2. Tap the browser menu (three dots) → **"Add to Home screen"** (or **"Install"**).
-3. Tap the **CardLens** icon on your home screen. It will launch in full-screen standalone mode without any browser address bar!
+1. Open `http://localhost:5050` in Firefox on Android (or Chrome/Edge on Desktop).
+2. Tap the browser menu (`⋮`) → **"Add to Home screen"** (or **"Install CardLens"**).
+3. Launch CardLens from your app launcher or desktop shortcut in full-screen standalone mode!
 
 ---
 
@@ -186,21 +192,21 @@ You can also re-run the wizard or adjust fields anytime by tapping the **⚙️ 
 
 1. **Capture:**
    - **Method A (Camera):** Tap **Camera** and take a quick photo of your Switch screen, TV, or physical manga.
-   - **Method B (Gallery / Screenshot):** Transfer a screenshot or select from your gallery, then tap **Gallery**.
-   - **Method C (Clipboard Paste):** Press your screenshot hotkey (e.g. `Win+Shift+S`) and press `Ctrl+V` in CardLens.
+   - **Method B (Gallery / Screenshot):** Select a screenshot from your device gallery.
+   - **Method C (PC Clipboard Paste):** Take a screenshot (`Win+Shift+S`) and press `Ctrl+V` in CardLens.
 2. **Crop & Enhance:**
-   - Drag and pinch the crop box around the dialogue box or text bubble.
-   - *(Optional)* Tap a filter chip (`Contrast`, `Sharpen`, `Invert`, or `B&W`) to boost text readability.
+   - Drag the box selection around dialogue text or manga panel.
+   - *(Optional)* Tap a filter chip (`Contrast`, `Sharpen`, `Invert`, or `B&W`) to boost readability.
    - Tap **"Extract Text ➔"** (or press `Enter`).
 3. **Mine with Yomitan:**
-   - The recognized Japanese text renders in large, selectable typography.
-   - Tap on any unfamiliar word. Yomitan's popup will display definitions, readings, and pitch accent.
-   - Tap the green **`+`** button in Yomitan to add the note to Anki.
-4. **Attach Image:**
-   - **Auto-Attach Mode:** If enabled, CardLens automatically detects the new card within 1–2 seconds and attaches the image with a subtle completion chime!
-   - **Manual Mode:** Tap **"📎 Attach Image to Card"** (or press `A`) to attach the image to your newest card.
+   - Recognized text renders in large, selectable typography.
+   - Tap or hover any word with Yomitan to view definitions, readings, and pitch accents.
+   - Click the green **`+`** button in Yomitan to create an Anki card.
+4. **Attach Image / Copy to Clipboard:**
+   - **AnkiConnect Mode:** Tap **"📎 Attach Image to Card"** (or let Auto-Attach run) to update the card in Anki.
+   - **Clipboard Mode:** Tap **"📋 Copy Image"** (or press `I`) to copy the panel and paste (`Ctrl+V`) into Anki Desktop.
 5. **Repeat:**
-   - Tap **"🔄 New Capture"** (or press `N`) to jump straight back to capturing your next sentence.
+   - Tap **"🔄 New Capture"** (or press `N`) to jump straight to the next sentence.
 
 ---
 
@@ -211,9 +217,12 @@ You can also re-run the wizard or adjust fields anytime by tapping the **⚙️ 
 | `Enter` | Crop & Extract Text |
 | `R` | Rotate Image 90° Clockwise |
 | `Shift + R` | Rotate Image 90° Counter-Clockwise |
-| `A` | Attach Cropped Image to Card |
-| `N` | Start New Capture |
-| `Escape` | Close Modal / Cancel Auto-Attach Polling |
+| `A` | Attach Cropped Image to Anki Card |
+| `I` / `Shift + C` | 📋 Copy Cropped Image to Clipboard |
+| `C` | ✂️ Adjust Crop Selection on Current Image |
+| `E` | ✏️ Edit Extracted OCR Text Inline |
+| `N` | 🔄 Start New Capture |
+| `Escape` | Close Modal / Cancel Polling / Cancel Edit |
 | `Ctrl + V` | Paste Image from Clipboard |
 
 ---
@@ -282,6 +291,15 @@ card-lens/
 <summary><strong>Q: What if Google Lens OCR fails or changes?</strong></summary>
 
 The backend uses `chrome-lens-py` to interface with Google Lens. If the upstream endpoint ever changes, `main.py` is modularly structured so you can swap in alternative OCR engines (such as `manga-ocr`, `easyocr`, or Google Cloud Vision) behind the exact same `POST /ocr` contract without modifying the frontend.
+</details>
+
+<details>
+<summary><strong>Q: AnkiConnect gives a "Cannot connect" error on PC / Desktop.</strong></summary>
+
+1. **Is Anki running?** Make sure the Anki Desktop application is open on your computer.
+2. **Is AnkiConnect installed?** In Anki Desktop, go to **Tools → Add-ons** (`Ctrl+Shift+A`), click **Get Add-ons...**, enter code **`2055492159`**, and restart Anki.
+3. **CORS issues?** CardLens includes an automatic local proxy (`/api/ankiconnect`), so browser CORS restrictions are handled automatically out of the box.
+4. **Prefer no add-ons?** Switch to **Clipboard Mode** in **⚙️ Settings → Card Mining Workflow** to copy cropped images directly to your clipboard (press `I`) and paste (`Ctrl+V`) into Anki Desktop!
 </details>
 
 <details>

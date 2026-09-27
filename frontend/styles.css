@@ -274,6 +274,13 @@ body {
   min-height: 34px;
 }
 
+.btn-tiny {
+  padding: 3px 8px;
+  font-size: 0.75rem;
+  min-height: 24px;
+  border-radius: 6px;
+}
+
 .btn-primary {
   background-color: var(--accent);
   color: #fff;
@@ -989,8 +996,153 @@ body.modal-open {
 .wizard-subtitle {
   font-size: 0.9rem;
   color: var(--text-secondary);
-  margin-bottom: 16px;
+  margin-bottom: 14px;
   line-height: 1.4;
+}
+
+/* Wizard Platform Switcher Tabs */
+.wizard-platform-tabs {
+  display: flex;
+  gap: 6px;
+  background-color: var(--bg-primary);
+  padding: 4px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+  margin-bottom: 14px;
+}
+
+.wizard-tab-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 10px;
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.wizard-tab-btn:hover {
+  color: var(--text-primary);
+  background-color: rgba(255, 255, 255, 0.04);
+}
+
+.wizard-tab-btn.active {
+  background-color: var(--bg-card);
+  color: var(--text-primary);
+  border-color: var(--border-color);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+
+.wizard-panel {
+  display: block;
+}
+
+.wizard-panel.hidden {
+  display: none !important;
+}
+
+/* PC Setup Guidance Box */
+.pc-steps-box {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 10px 0 12px 0;
+}
+
+.pc-step-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.84rem;
+  color: var(--text-secondary);
+  line-height: 1.35;
+}
+
+.pc-step-item strong {
+  color: var(--text-primary);
+}
+
+.step-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  background-color: var(--bg-input);
+  border: 1px solid var(--border-color);
+  border-radius: 50%;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--accent-cyan);
+  flex-shrink: 0;
+}
+
+.addon-code-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background-color: var(--bg-input);
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+}
+
+.addon-code-inline code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--accent-green);
+  letter-spacing: 0.5px;
+}
+
+.option-badge-cyan {
+  background-color: rgba(56, 189, 248, 0.15) !important;
+  color: var(--accent-cyan) !important;
+}
+
+.clipboard-feature-list {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0 12px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.84rem;
+  color: var(--text-secondary);
+}
+
+.clipboard-feature-list li {
+  line-height: 1.35;
+}
+
+/* Settings PC Helper Card */
+.settings-helper-card {
+  background-color: rgba(56, 189, 248, 0.05);
+  border: 1px solid rgba(56, 189, 248, 0.2);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.settings-helper-card .helper-text {
+  font-size: 0.84rem;
+  color: var(--text-primary);
 }
 
 .wizard-card-option {

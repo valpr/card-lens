@@ -2,3 +2,4 @@ starlette>=0.30.0
 uvicorn>=0.22.0
 chrome-lens-py>=0.4.0
 pillow>=10.0.0
+httpx>=0.24.0

@@ -69,6 +69,7 @@ const elements = {
   btnCopyText: document.getElementById('btnCopyText'),
   cropPreviewImg: document.getElementById('cropPreviewImg'),
   btnAttachAnki: document.getElementById('btnAttachAnki'),
+  btnCopyCropImage: document.getElementById('btnCopyCropImage'),
   btnAdjustCrop: document.getElementById('btnAdjustCrop'),
   btnNewCapture: document.getElementById('btnNewCapture'),
 
@@ -80,6 +81,10 @@ const elements = {
   btnCloseSettings: document.getElementById('btnCloseSettings'),
   modalBackdrop: document.getElementById('modalBackdrop'),
   settingsForm: document.getElementById('settingsForm'),
+  selectWorkflowMode: document.getElementById('selectWorkflowMode'),
+  workflowModeHint: document.getElementById('workflowModeHint'),
+  settingsPcHelper: document.getElementById('settingsPcHelper'),
+  btnSettingsCopyAddonCode: document.getElementById('btnSettingsCopyAddonCode'),
   inputAnkiUrl: document.getElementById('inputAnkiUrl'),
   inputAnkiDeck: document.getElementById('inputAnkiDeck'),
   inputAnkiField: document.getElementById('inputAnkiField'),
@@ -98,22 +103,44 @@ const elements = {
   fieldList: document.getElementById('fieldList'),
   btnOpenWizardFromSettings: document.getElementById('btnOpenWizardFromSettings'),
 
-  // Setup Wizard
+  // Setup Wizard Tabs & Panels
   setupWizardModal: document.getElementById('setupWizardModal'),
   wizardBackdrop: document.getElementById('wizardBackdrop'),
   btnSkipWizard: document.getElementById('btnSkipWizard'),
   btnSkipWizardBottom: document.getElementById('btnSkipWizardBottom'),
-  wizardYomitanFileInput: document.getElementById('wizardYomitanFileInput'),
-  wizardDropZone: document.getElementById('wizardDropZone'),
-  yomitanPreviewBox: document.getElementById('yomitanPreviewBox'),
-  yomitanPreviewDeck: document.getElementById('yomitanPreviewDeck'),
-  yomitanPreviewFieldSelect: document.getElementById('yomitanPreviewFieldSelect'),
-  yomitanPreviewModel: document.getElementById('yomitanPreviewModel'),
-  btnApplyYomitanConfig: document.getElementById('btnApplyYomitanConfig'),
-  btnWizardAutoDetect: document.getElementById('btnWizardAutoDetect'),
-  wizardDeckSelect: document.getElementById('wizardDeckSelect'),
-  wizardFieldSelect: document.getElementById('wizardFieldSelect'),
-  btnApplyAnkiDiscovery: document.getElementById('btnApplyAnkiDiscovery'),
+  wizardTabDesktop: document.getElementById('wizardTabDesktop'),
+  wizardTabMobile: document.getElementById('wizardTabMobile'),
+  wizardDesktopPanel: document.getElementById('wizardDesktopPanel'),
+  wizardMobilePanel: document.getElementById('wizardMobilePanel'),
+
+  // Desktop Wizard Controls
+  btnWizardCopyAddonCode: document.getElementById('btnWizardCopyAddonCode'),
+  btnWizardAutoDetectDesktop: document.getElementById('btnWizardAutoDetectDesktop'),
+  wizardDeckSelectDesktop: document.getElementById('wizardDeckSelectDesktop'),
+  wizardFieldSelectDesktop: document.getElementById('wizardFieldSelectDesktop'),
+  btnApplyDesktopAnki: document.getElementById('btnApplyDesktopAnki'),
+  btnStartClipboardModeDesktop: document.getElementById('btnStartClipboardModeDesktop'),
+  wizardDropZoneDesktop: document.getElementById('wizardDropZoneDesktop'),
+  wizardYomitanFileInputDesktop: document.getElementById('wizardYomitanFileInputDesktop'),
+  yomitanPreviewBoxDesktop: document.getElementById('yomitanPreviewBoxDesktop'),
+  yomitanPreviewDeckDesktop: document.getElementById('yomitanPreviewDeckDesktop'),
+  yomitanPreviewModelDesktop: document.getElementById('yomitanPreviewModelDesktop'),
+  yomitanPreviewFieldSelectDesktop: document.getElementById('yomitanPreviewFieldSelectDesktop'),
+  btnApplyYomitanConfigDesktop: document.getElementById('btnApplyYomitanConfigDesktop'),
+
+  // Mobile Wizard Controls
+  btnWizardAutoDetectMobile: document.getElementById('btnWizardAutoDetectMobile'),
+  wizardDeckSelectMobile: document.getElementById('wizardDeckSelectMobile'),
+  wizardFieldSelectMobile: document.getElementById('wizardFieldSelectMobile'),
+  btnApplyMobileAnki: document.getElementById('btnApplyMobileAnki'),
+  btnStartClipboardModeMobile: document.getElementById('btnStartClipboardModeMobile'),
+  wizardDropZoneMobile: document.getElementById('wizardDropZoneMobile'),
+  wizardYomitanFileInputMobile: document.getElementById('wizardYomitanFileInputMobile'),
+  yomitanPreviewBoxMobile: document.getElementById('yomitanPreviewBoxMobile'),
+  yomitanPreviewDeckMobile: document.getElementById('yomitanPreviewDeckMobile'),
+  yomitanPreviewModelMobile: document.getElementById('yomitanPreviewModelMobile'),
+  yomitanPreviewFieldSelectMobile: document.getElementById('yomitanPreviewFieldSelectMobile'),
+  btnApplyYomitanConfigMobile: document.getElementById('btnApplyYomitanConfigMobile'),
 
   toastContainer: document.getElementById('toastContainer')
 };
@@ -562,6 +589,9 @@ function initKeyboardShortcuts() {
       if ((e.key === 'a' || e.key === 'A') && !elements.btnAttachAnki.disabled) {
         e.preventDefault();
         handleAttachToAnki();
+      } else if ((e.key === 'i' || e.key === 'I' || (e.shiftKey && (e.key === 'c' || e.key === 'C'))) && elements.btnCopyCropImage && !elements.btnCopyCropImage.disabled) {
+        e.preventDefault();
+        copyCroppedImage();
       } else if (e.key === 'e' || e.key === 'E') {
         e.preventDefault();
         toggleEditOcr();
@@ -647,6 +677,7 @@ function initEventListeners() {
   if (elements.btnEditOcrText) elements.btnEditOcrText.addEventListener('click', toggleEditOcr);
   elements.btnCopyText.addEventListener('click', copyOcrText);
   elements.btnAttachAnki.addEventListener('click', handleAttachToAnki);
+  if (elements.btnCopyCropImage) elements.btnCopyCropImage.addEventListener('click', copyCroppedImage);
   if (elements.btnAdjustCrop) elements.btnAdjustCrop.addEventListener('click', handleAdjustCrop);
   elements.btnNewCapture.addEventListener('click', handleNewCapture);
   elements.btnToggleAutoAttach.addEventListener('click', toggleAutoAttach);
@@ -692,6 +723,15 @@ function initEventListeners() {
   elements.settingsForm.addEventListener('submit', saveSettings);
   elements.btnTestAnki.addEventListener('click', testAnkiConnection);
 
+  if (elements.selectWorkflowMode) {
+    elements.selectWorkflowMode.addEventListener('change', (e) => {
+      handleWorkflowModeChange(e.target.value);
+    });
+  }
+  if (elements.btnSettingsCopyAddonCode) {
+    elements.btnSettingsCopyAddonCode.addEventListener('click', copyAddonCode);
+  }
+
   // Settings Quick Tools
   elements.settingsYomitanInput.addEventListener('change', (e) => {
     if (e.target.files && e.target.files[0]) handleYomitanFile(e.target.files[0], false);
@@ -703,32 +743,91 @@ function initEventListeners() {
     openSetupWizard();
   });
 
-  // Setup Wizard
+  // Setup Wizard General Controls
   elements.btnSkipWizard.addEventListener('click', () => closeSetupWizard(true));
   elements.btnSkipWizardBottom.addEventListener('click', () => closeSetupWizard(true));
   elements.wizardBackdrop.addEventListener('click', () => closeSetupWizard(false));
-  elements.wizardYomitanFileInput.addEventListener('change', (e) => {
-    if (e.target.files && e.target.files[0]) handleYomitanFile(e.target.files[0], true);
-  });
-  elements.btnApplyYomitanConfig.addEventListener('click', applyYomitanConfig);
-  elements.btnWizardAutoDetect.addEventListener('click', () => autoDetectRecentCard(true));
-  elements.btnApplyAnkiDiscovery.addEventListener('click', applyWizardAnkiSelection);
 
-  // Wizard Drag and Drop
-  elements.wizardDropZone.addEventListener('dragover', (e) => {
-    e.preventDefault();
-    elements.wizardDropZone.style.borderColor = 'var(--accent-green)';
-  });
-  elements.wizardDropZone.addEventListener('dragleave', () => {
-    elements.wizardDropZone.style.borderColor = '';
-  });
-  elements.wizardDropZone.addEventListener('drop', (e) => {
-    e.preventDefault();
-    elements.wizardDropZone.style.borderColor = '';
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      handleYomitanFile(e.dataTransfer.files[0], true);
-    }
-  });
+  // Setup Wizard Platform Tabs
+  if (elements.wizardTabDesktop) {
+    elements.wizardTabDesktop.addEventListener('click', () => switchWizardPlatform('desktop'));
+  }
+  if (elements.wizardTabMobile) {
+    elements.wizardTabMobile.addEventListener('click', () => switchWizardPlatform('mobile'));
+  }
+  if (elements.btnWizardCopyAddonCode) {
+    elements.btnWizardCopyAddonCode.addEventListener('click', copyAddonCode);
+  }
+
+  // Setup Wizard: Desktop Panel
+  if (elements.btnWizardAutoDetectDesktop) {
+    elements.btnWizardAutoDetectDesktop.addEventListener('click', () => autoDetectRecentCard(true, 'desktop'));
+  }
+  if (elements.btnApplyDesktopAnki) {
+    elements.btnApplyDesktopAnki.addEventListener('click', () => applyWizardAnkiSelection('desktop'));
+  }
+  if (elements.btnStartClipboardModeDesktop) {
+    elements.btnStartClipboardModeDesktop.addEventListener('click', startClipboardMode);
+  }
+  if (elements.wizardYomitanFileInputDesktop) {
+    elements.wizardYomitanFileInputDesktop.addEventListener('change', (e) => {
+      if (e.target.files && e.target.files[0]) handleYomitanFile(e.target.files[0], true, 'desktop');
+    });
+  }
+  if (elements.btnApplyYomitanConfigDesktop) {
+    elements.btnApplyYomitanConfigDesktop.addEventListener('click', () => applyYomitanConfig('desktop'));
+  }
+  if (elements.wizardDropZoneDesktop) {
+    elements.wizardDropZoneDesktop.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      elements.wizardDropZoneDesktop.style.borderColor = 'var(--accent-green)';
+    });
+    elements.wizardDropZoneDesktop.addEventListener('dragleave', () => {
+      elements.wizardDropZoneDesktop.style.borderColor = '';
+    });
+    elements.wizardDropZoneDesktop.addEventListener('drop', (e) => {
+      e.preventDefault();
+      elements.wizardDropZoneDesktop.style.borderColor = '';
+      if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+        handleYomitanFile(e.dataTransfer.files[0], true, 'desktop');
+      }
+    });
+  }
+
+  // Setup Wizard: Mobile Panel
+  if (elements.btnWizardAutoDetectMobile) {
+    elements.btnWizardAutoDetectMobile.addEventListener('click', () => autoDetectRecentCard(true, 'mobile'));
+  }
+  if (elements.btnApplyMobileAnki) {
+    elements.btnApplyMobileAnki.addEventListener('click', () => applyWizardAnkiSelection('mobile'));
+  }
+  if (elements.btnStartClipboardModeMobile) {
+    elements.btnStartClipboardModeMobile.addEventListener('click', startClipboardMode);
+  }
+  if (elements.wizardYomitanFileInputMobile) {
+    elements.wizardYomitanFileInputMobile.addEventListener('change', (e) => {
+      if (e.target.files && e.target.files[0]) handleYomitanFile(e.target.files[0], true, 'mobile');
+    });
+  }
+  if (elements.btnApplyYomitanConfigMobile) {
+    elements.btnApplyYomitanConfigMobile.addEventListener('click', () => applyYomitanConfig('mobile'));
+  }
+  if (elements.wizardDropZoneMobile) {
+    elements.wizardDropZoneMobile.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      elements.wizardDropZoneMobile.style.borderColor = 'var(--accent-green)';
+    });
+    elements.wizardDropZoneMobile.addEventListener('dragleave', () => {
+      elements.wizardDropZoneMobile.style.borderColor = '';
+    });
+    elements.wizardDropZoneMobile.addEventListener('drop', (e) => {
+      e.preventDefault();
+      elements.wizardDropZoneMobile.style.borderColor = '';
+      if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+        handleYomitanFile(e.dataTransfer.files[0], true, 'mobile');
+      }
+    });
+  }
 }
 
 // ==========================================
@@ -1530,6 +1629,58 @@ function fallbackCopyText() {
   }
 }
 
+async function copyCroppedImage() {
+  if (!currentCroppedBase64) {
+    showToast('No cropped image available to copy.', 'error');
+    playSound('error');
+    return;
+  }
+
+  const btn = elements.btnCopyCropImage;
+  const originalHtml = btn ? btn.innerHTML : '';
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<span>📋 Copying...</span>';
+  }
+
+  try {
+    if (!navigator.clipboard || !window.ClipboardItem) {
+      throw new Error('Image clipboard copying not supported in this browser. You can right-click the thumbnail to copy.');
+    }
+
+    // Convert dataURL to image/png Blob
+    const blob = await new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth || img.width;
+        canvas.height = img.naturalHeight || img.height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+        canvas.toBlob((b) => {
+          if (b) resolve(b);
+          else reject(new Error('Canvas conversion to PNG blob failed'));
+        }, 'image/png');
+      };
+      img.onerror = () => reject(new Error('Failed to load image for clipboard copy'));
+      img.src = currentCroppedBase64;
+    });
+
+    await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+    showToast('📋 Cropped image copied to clipboard! Paste (Ctrl+V) into Anki.', 'success', 3500);
+    playSound('chime');
+  } catch (err) {
+    console.warn('Clipboard write error:', err);
+    showToast(`Could not copy image: ${err.message}`, 'error', 4500);
+    playSound('error');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = originalHtml;
+    }
+  }
+}
+
 // ==========================================
 // Multilingual / Script-Aware OCR Text Formatting
 // ==========================================
@@ -1601,8 +1752,82 @@ function applyLineMergeState() {
 }
 
 // ==========================================
-// Settings Modal
+// Settings Modal & Workflow Modes
 // ==========================================
+function handleWorkflowModeChange(mode) {
+  AnkiConnect.setWorkflowMode(mode);
+  applyWorkflowModeUI(mode);
+  showToast(`Workflow switched to ${mode === 'clipboard' ? 'Clipboard Mode' : 'AnkiConnect Mode'}`, 'info', 2500);
+}
+
+function applyWorkflowModeUI(mode) {
+  const isClipboard = mode === 'clipboard';
+  if (elements.selectWorkflowMode) {
+    elements.selectWorkflowMode.value = mode;
+  }
+  if (elements.workflowModeHint) {
+    elements.workflowModeHint.textContent = isClipboard
+      ? 'Clipboard mode: 1-click copy cropped images (I) and text to paste (Ctrl+V) directly into Anki Desktop.'
+      : 'AnkiConnect mode: Automatically attaches cropped images to newly mined cards in Anki.';
+  }
+  if (elements.btnCopyCropImage && elements.btnAttachAnki) {
+    if (isClipboard) {
+      elements.btnCopyCropImage.className = 'btn btn-accent btn-large';
+      elements.btnAttachAnki.className = 'btn btn-secondary';
+      if (elements.miningTip && !isEditingOcr) {
+        elements.miningTip.innerHTML = '💡 <strong>Clipboard mode:</strong> Look up words above with Yomitan. Tap <strong>📋 Copy Image (I)</strong> or <strong>Copy Text</strong> and paste (<code>Ctrl+V</code>) into Anki Desktop!';
+      }
+    } else {
+      elements.btnAttachAnki.className = 'btn btn-accent btn-large';
+      elements.btnCopyCropImage.className = 'btn btn-secondary';
+      if (elements.miningTip && !isEditingOcr) {
+        elements.miningTip.innerHTML = '💡 <strong>Mining step:</strong> Look up words above with Yomitan / dictionary extension to add an Anki card. Then tap <strong>Attach Image</strong> below (or <strong>Copy Image</strong> for clipboard).';
+      }
+    }
+  }
+}
+
+function copyAddonCode() {
+  const code = AnkiConnect.DESKTOP_ADDON_CODE || '2055492159';
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(code)
+      .then(() => {
+        showToast(`📋 Add-on code ${code} copied to clipboard!`, 'success');
+        playSound('click');
+      })
+      .catch(() => {
+        fallbackCopyTextToClipboard(code);
+      });
+  } else {
+    fallbackCopyTextToClipboard(code);
+  }
+}
+
+function fallbackCopyTextToClipboard(text) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed';
+  ta.style.left = '-9999px';
+  document.body.appendChild(ta);
+  ta.focus();
+  ta.select();
+  try {
+    document.execCommand('copy');
+    showToast(`Copied ${text} to clipboard!`, 'success');
+  } catch (_) {
+    showToast(`Copy failed. Code: ${text}`, 'error');
+  }
+  document.body.removeChild(ta);
+}
+
+function startClipboardMode() {
+  AnkiConnect.saveConfig({ workflowMode: 'clipboard' });
+  AnkiConnect.setSetupCompleted(true);
+  applyWorkflowModeUI('clipboard');
+  closeSetupWizard(true);
+  showToast('⚡ Started in Clipboard Mode! Paste screenshots (Ctrl+V) and copy images/text directly.', 'success', 5000);
+}
+
 function loadSavedSettings() {
   const config = AnkiConnect.getConfig();
   elements.inputAnkiUrl.value = config.url;
@@ -1627,6 +1852,9 @@ function loadSavedSettings() {
   if (savedLang !== null) {
     elements.selectOcrLang.value = savedLang;
   }
+
+  const workflowMode = config.workflowMode || 'ankiconnect';
+  applyWorkflowModeUI(workflowMode);
 }
 
 function openSettings() {
@@ -1649,6 +1877,7 @@ function saveSettings(e) {
   e.preventDefault();
   const autoAttachVal = elements.inputAutoAttach ? elements.inputAutoAttach.checked : isAutoAttachEnabled;
   const formatTemplateVal = elements.inputFormatTemplate ? elements.inputFormatTemplate.value : '<img src="{filename}">';
+  const workflowMode = elements.selectWorkflowMode ? elements.selectWorkflowMode.value : 'ankiconnect';
 
   if (elements.inputSoundFeedback) {
     isSoundEnabled = elements.inputSoundFeedback.checked;
@@ -1664,12 +1893,14 @@ function saveSettings(e) {
     deck: elements.inputAnkiDeck.value,
     pictureField: elements.inputAnkiField.value,
     autoAttach: autoAttachVal,
-    formatTemplate: formatTemplateVal
+    formatTemplate: formatTemplateVal,
+    workflowMode: workflowMode
   });
   localStorage.setItem('ocr_lang', elements.selectOcrLang.value);
 
   isAutoAttachEnabled = autoAttachVal;
   updateAutoAttachUI();
+  applyWorkflowModeUI(workflowMode);
 
   playSound('success');
   showToast('Settings saved!', 'success');
@@ -1709,7 +1940,30 @@ function openSetupWizard() {
   elements.setupWizardModal.scrollTop = 0;
   const content = elements.setupWizardModal.querySelector('.modal-content');
   if (content) content.scrollTop = 0;
+
+  // Auto-detect platform and default to corresponding tab
+  const isMobile = AnkiConnect.isMobileDevice();
+  switchWizardPlatform(isMobile ? 'mobile' : 'desktop');
+
   loadWizardDecksAndFields();
+}
+
+function switchWizardPlatform(platform) {
+  const isDesktop = platform === 'desktop';
+  if (elements.wizardTabDesktop) {
+    elements.wizardTabDesktop.classList.toggle('active', isDesktop);
+    elements.wizardTabDesktop.setAttribute('aria-selected', isDesktop ? 'true' : 'false');
+  }
+  if (elements.wizardTabMobile) {
+    elements.wizardTabMobile.classList.toggle('active', !isDesktop);
+    elements.wizardTabMobile.setAttribute('aria-selected', !isDesktop ? 'true' : 'false');
+  }
+  if (elements.wizardDesktopPanel) {
+    elements.wizardDesktopPanel.classList.toggle('hidden', !isDesktop);
+  }
+  if (elements.wizardMobilePanel) {
+    elements.wizardMobilePanel.classList.toggle('hidden', isDesktop);
+  }
 }
 
 function closeSetupWizard(markCompleted = false) {
@@ -1722,7 +1976,7 @@ function closeSetupWizard(markCompleted = false) {
   }
 }
 
-function handleYomitanFile(file, isWizard = true) {
+function handleYomitanFile(file, isWizard = true, platform = 'desktop') {
   if (!file) return;
   if (!file.name.endsWith('.json')) {
     showToast('Please select a .json file exported from Yomitan.', 'error');
@@ -1735,16 +1989,21 @@ function handleYomitanFile(file, isWizard = true) {
       const config = AnkiConnect.parseYomitanSettings(e.target.result);
       if (isWizard) {
         pendingYomitanConfig = config;
-        elements.yomitanPreviewDeck.textContent = config.deck || '(Not set)';
-        elements.yomitanPreviewModel.textContent = config.model || '(Not set)';
+        const deckElems = [elements.yomitanPreviewDeckDesktop, elements.yomitanPreviewDeckMobile].filter(Boolean);
+        const modelElems = [elements.yomitanPreviewModelDesktop, elements.yomitanPreviewModelMobile].filter(Boolean);
+        const fieldSelects = [elements.yomitanPreviewFieldSelectDesktop, elements.yomitanPreviewFieldSelectMobile].filter(Boolean);
+        const boxes = [elements.yomitanPreviewBoxDesktop, elements.yomitanPreviewBoxMobile].filter(Boolean);
 
-        // Populate field options so user can review and choose if they want to override
+        deckElems.forEach(el => el.textContent = config.deck || '(Not set)');
+        modelElems.forEach(el => el.textContent = config.model || '(Not set)');
+
         const fieldOptions = config.allFields && config.allFields.length > 0 
           ? config.allFields 
           : [config.pictureField, 'Picture', 'Image', 'Screenshot'];
-        updateSelectOptions(elements.yomitanPreviewFieldSelect, fieldOptions, config.pictureField);
 
-        elements.yomitanPreviewBox.classList.remove('hidden');
+        fieldSelects.forEach(sel => updateSelectOptions(sel, fieldOptions, config.pictureField));
+        boxes.forEach(box => box.classList.remove('hidden'));
+
         showToast('Yomitan settings loaded! Please review and confirm below.', 'info', 4500);
       } else {
         // Direct apply in Settings modal
@@ -1760,13 +2019,15 @@ function handleYomitanFile(file, isWizard = true) {
   reader.readAsText(file);
 }
 
-function applyYomitanConfig() {
+function applyYomitanConfig(platform = 'desktop') {
   if (!pendingYomitanConfig) return;
-  const chosenField = elements.yomitanPreviewFieldSelect.value || pendingYomitanConfig.pictureField;
+  const selectElem = platform === 'mobile' ? elements.yomitanPreviewFieldSelectMobile : elements.yomitanPreviewFieldSelectDesktop;
+  const chosenField = (selectElem && selectElem.value) || pendingYomitanConfig.pictureField;
   AnkiConnect.saveConfig({
     url: pendingYomitanConfig.server,
     deck: pendingYomitanConfig.deck,
-    pictureField: chosenField
+    pictureField: chosenField,
+    workflowMode: 'ankiconnect'
   });
   AnkiConnect.setSetupCompleted(true);
   loadSavedSettings();
@@ -1774,8 +2035,14 @@ function applyYomitanConfig() {
   closeSetupWizard(true);
 }
 
-async function autoDetectRecentCard(isWizard = true) {
-  const btn = isWizard ? elements.btnWizardAutoDetect : elements.btnSettingsAutoDetect;
+async function autoDetectRecentCard(isWizard = true, platform = 'desktop') {
+  let btn;
+  if (!isWizard) {
+    btn = elements.btnSettingsAutoDetect;
+  } else {
+    btn = platform === 'mobile' ? elements.btnWizardAutoDetectMobile : elements.btnWizardAutoDetectDesktop;
+  }
+  if (!btn) btn = elements.btnWizardAutoDetectDesktop || elements.btnSettingsAutoDetect;
   const origText = btn.innerHTML;
   btn.disabled = true;
   btn.textContent = 'Detecting...';
@@ -1783,22 +2050,30 @@ async function autoDetectRecentCard(isWizard = true) {
   try {
     const res = await AnkiConnect.detectFromRecentCard();
     if (isWizard) {
-      // Ensure the detected deck is selected without wiping existing deck options
-      let deckFound = false;
-      for (const opt of elements.wizardDeckSelect.options) {
-        if (opt.value === res.deckName) {
-          deckFound = true;
-          break;
+      const deckSelects = [elements.wizardDeckSelectDesktop, elements.wizardDeckSelectMobile].filter(Boolean);
+      const fieldSelects = [elements.wizardFieldSelectDesktop, elements.wizardFieldSelectMobile].filter(Boolean);
+
+      deckSelects.forEach(sel => {
+        let deckFound = false;
+        for (const opt of sel.options) {
+          if (opt.value === res.deckName) {
+            deckFound = true;
+            break;
+          }
         }
-      }
-      if (!deckFound && res.deckName) {
-        const opt = document.createElement('option');
-        opt.value = res.deckName;
-        opt.textContent = res.deckName;
-        elements.wizardDeckSelect.appendChild(opt);
-      }
-      elements.wizardDeckSelect.value = res.deckName;
-      updateSelectOptions(elements.wizardFieldSelect, res.fields, res.pictureField);
+        if (!deckFound && res.deckName) {
+          const opt = document.createElement('option');
+          opt.value = res.deckName;
+          opt.textContent = res.deckName;
+          sel.appendChild(opt);
+        }
+        sel.value = res.deckName;
+      });
+
+      fieldSelects.forEach(sel => {
+        updateSelectOptions(sel, res.fields, res.pictureField);
+      });
+
       showToast(`Found card! Deck: "${res.deckName}", Field: "${res.pictureField}"`, 'success');
     } else {
       elements.inputAnkiDeck.value = res.deckName;
@@ -1806,7 +2081,7 @@ async function autoDetectRecentCard(isWizard = true) {
       showToast(`Detected: Deck "${res.deckName}", Field "${res.pictureField}"`, 'success');
     }
   } catch (err) {
-    showToast(err.message, 'error', 5000);
+    showToast(err.message, 'error', 6000);
   } finally {
     btn.disabled = false;
     btn.innerHTML = origText;
@@ -1855,7 +2130,12 @@ async function loadWizardDecksAndFields() {
   try {
     const decks = await AnkiConnect.getDeckNames();
     if (decks && decks.length > 0) {
-      updateSelectOptions(elements.wizardDeckSelect, decks, elements.wizardDeckSelect.value);
+      if (elements.wizardDeckSelectDesktop) {
+        updateSelectOptions(elements.wizardDeckSelectDesktop, decks, elements.wizardDeckSelectDesktop.value);
+      }
+      if (elements.wizardDeckSelectMobile) {
+        updateSelectOptions(elements.wizardDeckSelectMobile, decks, elements.wizardDeckSelectMobile.value);
+      }
     }
   } catch (_) {
     // Silently continue if Anki is not running yet during initial load
@@ -1863,6 +2143,7 @@ async function loadWizardDecksAndFields() {
 }
 
 function updateSelectOptions(selectElem, options, selectedValue) {
+  if (!selectElem) return;
   selectElem.innerHTML = '';
   options.forEach(optVal => {
     const opt = document.createElement('option');
@@ -1873,10 +2154,12 @@ function updateSelectOptions(selectElem, options, selectedValue) {
   });
 }
 
-function applyWizardAnkiSelection() {
-  const deck = elements.wizardDeckSelect.value;
-  const pictureField = elements.wizardFieldSelect.value;
-  AnkiConnect.saveConfig({ deck, pictureField });
+function applyWizardAnkiSelection(platform = 'desktop') {
+  const deckSelect = platform === 'mobile' ? elements.wizardDeckSelectMobile : elements.wizardDeckSelectDesktop;
+  const fieldSelect = platform === 'mobile' ? elements.wizardFieldSelectMobile : elements.wizardFieldSelectDesktop;
+  const deck = deckSelect ? deckSelect.value : 'Mining';
+  const pictureField = fieldSelect ? fieldSelect.value : 'Picture';
+  AnkiConnect.saveConfig({ deck, pictureField, workflowMode: 'ankiconnect' });
   AnkiConnect.setSetupCompleted(true);
   loadSavedSettings();
   showToast(`✅ Saved! Deck: "${deck}", Field: "${pictureField}"`, 'success');

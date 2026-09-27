@@ -2,9 +2,11 @@ import base64
 import binascii
 import logging
 import os
+import urllib.parse
 from contextlib import asynccontextmanager
 from typing import Optional
 
+import httpx
 from chrome_lens_py import LensAPI, LensAPIError, LensImageError
 from starlette.applications import Starlette
 from starlette.middleware import Middleware
@@ -21,10 +23,12 @@ logger = logging.getLogger("cardlens")
 
 @asynccontextmanager
 async def lifespan(app: Starlette):
-    """Lifecycle manager for Starlette app: initialize and close LensAPI client."""
+    """Lifecycle manager for Starlette app: initialize and close LensAPI and HTTP proxy clients."""
     logger.info("Initializing LensAPI client...")
     lens = LensAPI()
     app.state.lens = lens
+    http_client = httpx.AsyncClient(timeout=15.0)
+    app.state.http_client = http_client
 
     port = os.environ.get("PORT", "5050")
     print(
@@ -38,11 +42,15 @@ async def lifespan(app: Starlette):
     )
 
     yield
-    logger.info("Closing LensAPI client...")
+    logger.info("Closing LensAPI and HTTP proxy clients...")
     try:
         await lens.aclose()
     except Exception as e:
         logger.warning(f"Error closing LensAPI: {e}")
+    try:
+        await http_client.aclose()
+    except Exception as e:
+        logger.warning(f"Error closing HTTP proxy client: {e}")
 
 
 async def health_check(request: Request) -> JSONResponse:
@@ -146,6 +154,74 @@ async def ocr_endpoint(request: Request) -> JSONResponse:
     })
 
 
+def is_safe_local_url(url: str) -> bool:
+    """Validate target URL to ensure requests only route to local or private network instances."""
+    try:
+        parsed = urllib.parse.urlparse(url)
+        if parsed.scheme not in ("http", "https"):
+            return False
+        hostname = (parsed.hostname or "").lower()
+        if hostname in ("localhost", "127.0.0.1", "::1", "0.0.0.0"):
+            return True
+        # Allow standard RFC 1918 private IPv4 addresses (LAN devices)
+        if hostname.startswith("192.168.") or hostname.startswith("10.") or hostname.startswith("172."):
+            return True
+        return False
+    except Exception:
+        return False
+
+
+async def ankiconnect_proxy_endpoint(request: Request) -> JSONResponse:
+    """
+    Transparent proxy endpoint for AnkiConnect requests.
+    Eliminates CORS origin blocking on PC desktop browsers (where AnkiConnect rejects localhost:5050).
+    """
+    try:
+        data = await request.json()
+    except Exception:
+        return JSONResponse({"error": "Invalid JSON payload."}, status_code=400)
+
+    if not isinstance(data, dict):
+        return JSONResponse({"error": "JSON payload must be an object."}, status_code=400)
+
+    # Determine destination URL (from header or payload)
+    target_url = request.headers.get("X-Anki-Url") or data.get("ankiUrl") or "http://127.0.0.1:8765"
+    if not isinstance(target_url, str) or not is_safe_local_url(target_url):
+        return JSONResponse({"error": f"Invalid or disallowed target URL: {target_url}"}, status_code=400)
+
+    # Clean payload for AnkiConnect
+    payload = {k: v for k, v in data.items() if k != "ankiUrl"}
+
+    client: Optional[httpx.AsyncClient] = getattr(request.app.state, "http_client", None)
+    own_client = False
+    if client is None:
+        client = httpx.AsyncClient(timeout=15.0)
+        own_client = True
+
+    try:
+        resp = await client.post(target_url, json=payload)
+        resp_data = resp.json()
+        return JSONResponse(resp_data, status_code=resp.status_code)
+    except httpx.ConnectError:
+        return JSONResponse(
+            {"error": f"Cannot connect to AnkiConnect at {target_url}. Connection refused."},
+            status_code=502,
+        )
+    except httpx.TimeoutException:
+        return JSONResponse(
+            {"error": f"Connection to AnkiConnect at {target_url} timed out."},
+            status_code=504,
+        )
+    except Exception as err:
+        return JSONResponse(
+            {"error": f"AnkiConnect proxy error: {str(err)}"},
+            status_code=502,
+        )
+    finally:
+        if own_client:
+            await client.aclose()
+
+
 class NoCacheStaticMiddleware(BaseHTTPMiddleware):
     """Ensure HTML, JS, CSS, and manifest files are never served stale by aggressive browser caches."""
 
@@ -173,6 +249,8 @@ middleware = [
 routes = [
     Route("/health", health_check, methods=["GET"]),
     Route("/ocr", ocr_endpoint, methods=["POST"]),
+    Route("/api/ankiconnect", ankiconnect_proxy_endpoint, methods=["POST"]),
+    Route("/ankiconnect", ankiconnect_proxy_endpoint, methods=["POST"]),
 ]
 
 # Mount static files for PWA frontend

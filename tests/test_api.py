@@ -120,6 +120,30 @@ class TestCardLensAPI(unittest.TestCase):
                 if expected_mime:
                     self.assertIn(expected_mime, resp.headers.get("content-type", ""))
 
+    def test_ankiconnect_proxy_invalid_json(self):
+        """Proxy endpoint handles malformed or non-dict JSON gracefully"""
+        resp = self.client.post("/api/ankiconnect", content=b"invalid json", headers={"Content-Type": "application/json"})
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("error", resp.json())
+
+    def test_ankiconnect_proxy_disallowed_target_url(self):
+        """Proxy endpoint rejects external or untrusted target URLs for SSRF protection"""
+        resp = self.client.post(
+            "/api/ankiconnect",
+            json={"action": "version", "ankiUrl": "http://evil-external-site.com:8765"},
+        )
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("disallowed", resp.json()["error"])
+
+    def test_ankiconnect_proxy_unreachable_target(self):
+        """Proxy endpoint returns 502 Bad Gateway when target port is unreachable"""
+        resp = self.client.post(
+            "/api/ankiconnect",
+            json={"action": "version", "ankiUrl": "http://127.0.0.1:59999"},
+        )
+        self.assertEqual(resp.status_code, 502)
+        self.assertIn("Cannot connect to AnkiConnect", resp.json()["error"])
+
 
 if __name__ == "__main__":
     unittest.main()
