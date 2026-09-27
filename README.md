@@ -92,8 +92,8 @@ Open **Termux** on your phone and paste this single command:
 pkg update -y && pkg install -y curl && curl -sL https://raw.githubusercontent.com/valpr/card-lens/main/setup_termux.sh | bash
 ```
 *What this automated script does:*
-- Updates packages and installs `python` and `git`
-- Clones CardLens to `~/cardlens` and installs all dependencies
+- Updates packages and installs `python`, `git`, and build tools
+- Clones CardLens to `~/cardlens` and installs dependencies in an isolated `venv`
 - Installs the global `cardlens` command into your PATH
 - Sets up the home screen launcher for Termux:Widget
 

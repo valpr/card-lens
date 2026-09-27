@@ -12,19 +12,15 @@ echo "=== CardLens: Termux Setup ==="
 echo ""
 
 # 1. Update package repos
-echo "[1/6] Updating packages..."
+echo "[1/5] Updating packages..."
 pkg update -y && pkg upgrade -y
 
-# 2. Install system dependencies
-echo "[2/6] Installing system dependencies (python, git)..."
-pkg install -y python git
+# 2. Install system dependencies (build tools & libraries needed for Pillow)
+echo "[2/5] Installing system dependencies (python, git, build tools)..."
+pkg install -y python git build-essential libjpeg-turbo libpng
 
-# 3. Upgrade pip
-echo "[3/6] Upgrading pip..."
-pip install --upgrade pip
-
-# 4. Clone repo if needed & install dependencies
-echo "[4/6] Setting up CardLens files & Python dependencies..."
+# 3. Clone repo or update if needed
+echo "[3/5] Setting up CardLens files..."
 if [ ! -f "main.py" ]; then
   if [ ! -d "$HOME/cardlens" ]; then
     echo "Cloning CardLens repository into $HOME/cardlens..."
@@ -35,20 +31,35 @@ fi
 
 INSTALL_DIR="$(pwd)"
 
-if [ -f "requirements.txt" ]; then
-  pip install -r requirements.txt
+if [ -d ".git" ]; then
+  git pull --ff-only 2>/dev/null || true
+fi
+
+# 4. Set up Python virtual environment & install dependencies
+# Note: In Termux, upgrading system pip is forbidden by design.
+# Using a venv avoids PEP 668 conflicts and keeps dependencies isolated.
+echo "[4/5] Setting up Python virtual environment & dependencies..."
+VENV_DIR="$INSTALL_DIR/venv"
+if [ ! -d "$VENV_DIR" ]; then
+  python -m venv "$VENV_DIR"
+fi
+
+if [ -f "$VENV_DIR/bin/pip" ]; then
+  RUN_UVICORN="$VENV_DIR/bin/uvicorn"
+  "$VENV_DIR/bin/pip" install --extra-index-url https://termux-user-repository.github.io/pypi/ -r requirements.txt
 else
-  pip install fastapi uvicorn chrome-lens-py pillow python-multipart
+  RUN_UVICORN="uvicorn"
+  pip install --break-system-packages --extra-index-url https://termux-user-repository.github.io/pypi/ -r requirements.txt
 fi
 
 # 5. Create CLI command & Termux:Widget shortcut
-echo "[5/6] Setting up 'cardlens' command and Termux:Widget shortcut..."
+echo "[5/5] Setting up 'cardlens' command and Termux:Widget shortcut..."
 PREFIX="${PREFIX:-/data/data/com.termux/files/usr}"
 if [ -d "$PREFIX/bin" ]; then
   cat > "$PREFIX/bin/cardlens" << SCRIPT
 #!/data/data/com.termux/files/usr/bin/bash
 cd "$INSTALL_DIR"
-exec uvicorn main:app --host 0.0.0.0 --port 5050 "\$@"
+exec "$RUN_UVICORN" main:app --host 0.0.0.0 --port 5050 "\$@"
 SCRIPT
   chmod +x "$PREFIX/bin/cardlens"
 fi
@@ -57,27 +68,28 @@ mkdir -p ~/.shortcuts
 cat > ~/.shortcuts/CardLens.sh << SCRIPT
 #!/data/data/com.termux/files/usr/bin/bash
 cd "$INSTALL_DIR"
-uvicorn main:app --host 0.0.0.0 --port 5050
+exec "$RUN_UVICORN" main:app --host 0.0.0.0 --port 5050
 SCRIPT
 chmod +x ~/.shortcuts/CardLens.sh
 
 # 6. Done
-echo "[6/6] Setup complete!"
+echo ""
+echo "=== Setup complete! ==="
 echo ""
 echo "=== Next Steps ==="
 echo ""
-echo "1. Install Termux:Widget from F-Droid (must match Termux's install source)."
+echo "1. Install Termux:Widget from F-Droid (optional, for home screen shortcut)."
 echo ""
 echo "2. Add the widget to your home screen:"
-echo "   Long-press home screen → Widgets → Termux:Widget → place it."
-echo "   Select 'CardLens.sh' (or add the 1x1 shortcut icon)."
+echo "   Long-press home screen → Widgets → Termux:Widget → Termux shortcut (1x1)."
+echo "   Select 'CardLens.sh'."
 echo ""
 echo "3. Grant Termux permissions (Android 10+):"
 echo "   Android Settings → Apps → Termux → Permissions:"
 echo "   • 'Appear on top' / 'Display pop-up window' (to allow widget to launch)"
 echo "   • Battery → 'Unrestricted' (prevents Android from killing the server)"
 echo ""
-echo "4. Tap 'CardLens' on your home screen (or run 'cardlens' in Termux) to start,"
+echo "4. Tap 'CardLens' on your home screen (or type 'cardlens' in Termux) to start,"
 echo "   then open http://localhost:5050 in Firefox Android."
 echo ""
 echo "5. To stop the server:"
