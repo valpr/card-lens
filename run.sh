@@ -4,25 +4,44 @@
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$DIR"
 
+# Prevent executing on Android shared storage (/sdcard) where execution is blocked
+case "$DIR" in
+  /sdcard*|/storage*|/mnt/sdcard*|/mnt/runtime*)
+    echo "=========================================================="
+    echo "ERROR: CardLens cannot run from shared storage ($DIR)!"
+    echo "Android prevents executing scripts & binaries in /sdcard."
+    echo ""
+    echo "Please clone and run CardLens from your Termux home directory:"
+    echo "  cd ~"
+    echo "  git clone https://github.com/valpr/card-lens.git cardlens"
+    echo "  cd cardlens && bash setup_termux.sh"
+    echo "=========================================================="
+    exit 1
+    ;;
+esac
+
+# Ensure this script and setup script remain executable
+chmod +x "$0" "$DIR/run.sh" "$DIR/setup_termux.sh" 2>/dev/null || true
+
 PORT="${PORT:-5050}"
 HOST="${HOST:-0.0.0.0}"
 PID_FILE="$DIR/.cardlens.pid"
 
 # ----------------------------------------------------
-# 1. Detect Python & Uvicorn Binaries
+# 1. Detect Python & Ensure Binaries Are Executable
 # ----------------------------------------------------
-if [ -f "$DIR/venv/bin/uvicorn" ]; then
-  UVICORN_BIN="$DIR/venv/bin/uvicorn"
+if [ -d "$DIR/venv/bin" ]; then
+  chmod -R +x "$DIR/venv/bin" 2>/dev/null || true
+fi
+
+if [ -f "$DIR/venv/bin/python" ]; then
   PYTHON_BIN="$DIR/venv/bin/python"
-elif command -v uvicorn >/dev/null 2>&1; then
-  UVICORN_BIN="uvicorn"
-  PYTHON_BIN="$(command -v python3 || command -v python || true)"
 elif command -v python3 >/dev/null 2>&1; then
-  PYTHON_BIN="python3"
-  UVICORN_BIN="python3 -m uvicorn"
+  PYTHON_BIN="$(command -v python3)"
 elif command -v python >/dev/null 2>&1; then
-  PYTHON_BIN="python"
-  UVICORN_BIN="python -m uvicorn"
+  PYTHON_BIN="$(command -v python)"
+elif command -v uvicorn >/dev/null 2>&1; then
+  PYTHON_BIN=""
 else
   echo "Error: Python or uvicorn not found. Please run setup_termux.sh first."
   exit 1
@@ -136,6 +155,7 @@ if [ -d ".git" ]; then
   echo "Checking for CardLens updates..."
   if git -c http.connectTimeout=10 -c http.lowSpeedTime=10 fetch origin main; then
     git reset --hard origin/main
+    chmod +x "$DIR/run.sh" "$DIR/setup_termux.sh" 2>/dev/null || true
     echo "CardLens is updated to $(git rev-parse --short HEAD)."
   else
     echo "Notice: Could not connect to GitHub. Continuing in offline mode."
@@ -155,4 +175,8 @@ echo "  Local address:   http://127.0.0.1:${PORT}"
 echo "================================================"
 echo ""
 
-exec $UVICORN_BIN main:app --host "$HOST" --port "$PORT" "$@"
+if [ -n "$PYTHON_BIN" ]; then
+  exec "$PYTHON_BIN" -m uvicorn main:app --host "$HOST" --port "$PORT" "$@"
+else
+  exec uvicorn main:app --host "$HOST" --port "$PORT" "$@"
+fi

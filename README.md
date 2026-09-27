@@ -269,6 +269,13 @@ card-lens/
 ## 🛠️ Troubleshooting & FAQ
 
 <details>
+<summary><strong>Q: "Permission denied" error when running run.sh on Termux.</strong></summary>
+
+1. **Quick Fix:** Run `chmod +x run.sh && ./run.sh` or `bash run.sh`.
+2. **Repository in Shared Storage:** Make sure CardLens is located in Termux's internal home directory (`~/cardlens` or `/data/data/com.termux/files/home/cardlens`), **not** in `/sdcard` or `/storage/emulated/0`. Android mounts external and shared storage with `noexec`, preventing any script or binary execution.
+</details>
+
+<details>
 <summary><strong>Q: What if Google Lens OCR fails or changes?</strong></summary>
 
 The backend uses `chrome-lens-py` to interface with Google Lens. If the upstream endpoint ever changes, `main.py` is modularly structured so you can swap in alternative OCR engines (such as `manga-ocr`, `easyocr`, or Google Cloud Vision) behind the exact same `POST /ocr` contract without modifying the frontend.

@@ -8,6 +8,22 @@
 
 set -e
 
+# Prevent executing on Android shared storage (/sdcard) where execution is blocked
+case "$(pwd)" in
+  /sdcard*|/storage*|/mnt/sdcard*|/mnt/runtime*)
+    echo "=========================================================="
+    echo "ERROR: CardLens cannot run from shared storage ($(pwd))!"
+    echo "Android prevents executing scripts & binaries in /sdcard."
+    echo ""
+    echo "Please clone and run CardLens from your Termux home directory:"
+    echo "  cd ~"
+    echo "  git clone https://github.com/valpr/card-lens.git cardlens"
+    echo "  cd cardlens && bash setup_termux.sh"
+    echo "=========================================================="
+    exit 1
+    ;;
+esac
+
 echo "=== CardLens: Termux Setup ==="
 echo ""
 
@@ -34,6 +50,7 @@ INSTALL_DIR="$(pwd)"
 if [ -d ".git" ]; then
   git fetch origin main 2>/dev/null || true
   git reset --hard origin/main 2>/dev/null || git pull --ff-only 2>/dev/null || true
+  chmod +x "$INSTALL_DIR/run.sh" "$INSTALL_DIR/setup_termux.sh" 2>/dev/null || true
 fi
 
 # 4. Set up Python virtual environment & install dependencies
@@ -55,13 +72,14 @@ fi
 
 # 5. Create CLI command & Termux:Widget shortcut
 echo "[5/5] Setting up 'cardlens' command and Termux:Widget shortcut..."
-chmod +x "$INSTALL_DIR/run.sh"
+chmod +x "$INSTALL_DIR/run.sh" "$INSTALL_DIR/setup_termux.sh" 2>/dev/null || true
 
 PREFIX="${PREFIX:-/data/data/com.termux/files/usr}"
 if [ -d "$PREFIX/bin" ]; then
   cat > "$PREFIX/bin/cardlens" << SCRIPT
 #!/data/data/com.termux/files/usr/bin/bash
-exec "$INSTALL_DIR/run.sh" "\$@"
+chmod +x "$INSTALL_DIR/run.sh" 2>/dev/null || true
+exec /data/data/com.termux/files/usr/bin/bash "$INSTALL_DIR/run.sh" "\$@"
 SCRIPT
   chmod +x "$PREFIX/bin/cardlens"
 fi
@@ -69,7 +87,8 @@ fi
 mkdir -p ~/.shortcuts
 cat > ~/.shortcuts/CardLens.sh << SCRIPT
 #!/data/data/com.termux/files/usr/bin/bash
-exec "$INSTALL_DIR/run.sh"
+chmod +x "$INSTALL_DIR/run.sh" 2>/dev/null || true
+exec /data/data/com.termux/files/usr/bin/bash "$INSTALL_DIR/run.sh"
 SCRIPT
 chmod +x ~/.shortcuts/CardLens.sh
 
