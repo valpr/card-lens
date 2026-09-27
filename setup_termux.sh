@@ -2,7 +2,7 @@
 # CardLens — Termux Setup Script
 # 
 # Paste this into Termux to set up the environment:
-#   curl -sL https://raw.githubusercontent.com/valpr/card-lens/main/setup_termux.sh | bash
+#   pkg update -y && pkg install -y curl && curl -sL https://raw.githubusercontent.com/valpr/card-lens/main/setup_termux.sh | bash
 # Or clone and run:
 #   git clone https://github.com/valpr/card-lens.git cardlens && cd cardlens && bash setup_termux.sh
 
@@ -41,8 +41,18 @@ else
   pip install fastapi uvicorn chrome-lens-py pillow python-multipart
 fi
 
-# 5. Create Termux:Widget shortcut
-echo "[5/6] Setting up Termux:Widget shortcut..."
+# 5. Create CLI command & Termux:Widget shortcut
+echo "[5/6] Setting up 'cardlens' command and Termux:Widget shortcut..."
+PREFIX="${PREFIX:-/data/data/com.termux/files/usr}"
+if [ -d "$PREFIX/bin" ]; then
+  cat > "$PREFIX/bin/cardlens" << SCRIPT
+#!/data/data/com.termux/files/usr/bin/bash
+cd "$INSTALL_DIR"
+exec uvicorn main:app --host 0.0.0.0 --port 5050 "\$@"
+SCRIPT
+  chmod +x "$PREFIX/bin/cardlens"
+fi
+
 mkdir -p ~/.shortcuts
 cat > ~/.shortcuts/CardLens.sh << SCRIPT
 #!/data/data/com.termux/files/usr/bin/bash
@@ -67,8 +77,8 @@ echo "   Android Settings → Apps → Termux → Permissions:"
 echo "   • 'Appear on top' / 'Display pop-up window' (to allow widget to launch)"
 echo "   • Battery → 'Unrestricted' (prevents Android from killing the server)"
 echo ""
-echo "4. Tap 'CardLens' on your home screen to start the server, then open:"
-echo "   http://localhost:5050 in Firefox Android"
+echo "4. Tap 'CardLens' on your home screen (or run 'cardlens' in Termux) to start,"
+echo "   then open http://localhost:5050 in Firefox Android."
 echo ""
 echo "5. To stop the server:"
 echo "   Open the Termux notification / window and press Ctrl+C."
