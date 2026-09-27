@@ -39,25 +39,20 @@ if [ -f "$PID_FILE" ]; then
   old_pid=$(cat "$PID_FILE" 2>/dev/null || true)
   if [ -n "$old_pid" ] && [ "$old_pid" != "$$" ] && kill -0 "$old_pid" 2>/dev/null; then
     echo "Found previous CardLens instance (PID $old_pid). Stopping..."
-    kill -TERM "$old_pid" 2>/dev/null || true
+    kill -9 "$old_pid" 2>/dev/null || true
     previous_found=1
   fi
   rm -f "$PID_FILE"
 fi
 
-# B) Check running processes via pgrep (excluding self)
-if command -v pgrep >/dev/null 2>&1; then
-  matching_pids=$(pgrep -f "main:app" 2>/dev/null | grep -v "^$$\$" || true)
-  if [ -n "$matching_pids" ]; then
-    echo "Stopping existing CardLens process(es): $matching_pids..."
-    for p in $matching_pids; do
-      kill -TERM "$p" 2>/dev/null || true
-    done
-    previous_found=1
-  fi
+# B) Force kill any lingering processes on port or uvicorn
+fuser -k -9 "${PORT}/tcp" 2>/dev/null || true
+if command -v pkill >/dev/null 2>&1; then
+  pkill -9 -f "main:app" 2>/dev/null || true
+  pkill -9 -f "uvicorn" 2>/dev/null || true
 fi
 
-# C) Use Python to ensure port is freed and catch any background processes
+# C) Use Python to ensure port is freed and catch any background processes via /proc/net/tcp
 if [ -n "$PYTHON_BIN" ]; then
   "$PYTHON_BIN" -c "
 import os, signal, sys, time, socket
@@ -66,35 +61,49 @@ target_port = int('$PORT')
 cur_pid = os.getpid()
 parent_pid = os.getppid()
 
-# Inspect /proc for any CardLens or uvicorn main:app processes
-if os.path.exists('/proc'):
-    for entry in os.listdir('/proc'):
-        if entry.isdigit():
-            p = int(entry)
-            if p in (cur_pid, parent_pid, 1):
-                continue
+def find_pids_on_port(port):
+    port_hex = f'{port:04X}'
+    inodes = set()
+    for net_file in ('/proc/net/tcp', '/proc/net/tcp6'):
+        if os.path.exists(net_file):
             try:
-                with open(f'/proc/{p}/cmdline', 'rb') as f:
-                    cmd = f.read().decode('utf-8', errors='ignore')
-                if 'main:app' in cmd:
-                    os.kill(p, signal.SIGTERM)
+                with open(net_file, 'r') as f:
+                    for line in f:
+                        parts = line.strip().split()
+                        if len(parts) >= 10 and ':' in parts[1]:
+                            local_port = parts[1].split(':')[1]
+                            if local_port.upper() == port_hex:
+                                inodes.add(parts[9])
             except Exception:
                 pass
+    pids = set()
+    if os.path.exists('/proc'):
+        for entry in os.listdir('/proc'):
+            if entry.isdigit():
+                p = int(entry)
+                if p in (cur_pid, parent_pid, 1):
+                    continue
+                fd_dir = f'/proc/{p}/fd'
+                if os.path.exists(fd_dir):
+                    try:
+                        for fd in os.listdir(fd_dir):
+                            target = os.readlink(f'{fd_dir}/{fd}')
+                            for inode in inodes:
+                                if f'[{inode}]' in target:
+                                    pids.add(p)
+                    except Exception:
+                        pass
+    return pids
 
-# Poll until port is free (up to 2.5s)
-port_freed = False
-for _ in range(25):
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+# Kill any process holding the port directly
+for p in find_pids_on_port(target_port):
     try:
-        s.bind(('0.0.0.0', target_port))
-        s.close()
-        port_freed = True
-        break
-    except OSError:
-        time.sleep(0.1)
+        os.kill(p, signal.SIGKILL)
+    except Exception:
+        pass
 
-# If still blocked, attempt SIGKILL on lingering processes
-if not port_freed and os.path.exists('/proc'):
+# Also kill any remaining main:app processes
+if os.path.exists('/proc'):
     for entry in os.listdir('/proc'):
         if entry.isdigit():
             p = int(entry)
@@ -107,12 +116,17 @@ if not port_freed and os.path.exists('/proc'):
                     os.kill(p, signal.SIGKILL)
             except Exception:
                 pass
-" 2>/dev/null || true
-fi
 
-if [ "$previous_found" -eq 1 ]; then
-  sleep 0.5
-  echo "Previous instance closed."
+# Poll until port is free (up to 2.5s)
+for _ in range(25):
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        s.bind(('0.0.0.0', target_port))
+        s.close()
+        break
+    except OSError:
+        time.sleep(0.1)
+" 2>/dev/null || true
 fi
 
 # ----------------------------------------------------
@@ -120,7 +134,9 @@ fi
 # ----------------------------------------------------
 if [ -d ".git" ]; then
   echo "Checking for CardLens updates..."
-  git -c http.connectTimeout=3 -c http.lowSpeedTime=3 pull --ff-only 2>/dev/null || true
+  git -c http.connectTimeout=4 -c http.lowSpeedTime=4 fetch origin main 2>/dev/null && \
+  git reset --hard origin/main 2>/dev/null || \
+  git pull --ff-only 2>/dev/null || true
 fi
 
 # ----------------------------------------------------
