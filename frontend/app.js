@@ -6,6 +6,8 @@
 let cropper = null;
 let currentCroppedBase64 = null;
 let currentOcrText = '';
+let rawOcrText = '';
+let isLinesMerged = false;
 let currentFilter = 'normal';
 let isAutoAttachEnabled = false;
 let pollingInterval = null;
@@ -59,6 +61,7 @@ const elements = {
   pollingBanner: document.getElementById('pollingBanner'),
   pollingCountdown: document.getElementById('pollingCountdown'),
   btnCancelPolling: document.getElementById('btnCancelPolling'),
+  btnToggleMergeLines: document.getElementById('btnToggleMergeLines'),
   btnCopyText: document.getElementById('btnCopyText'),
   cropPreviewImg: document.getElementById('cropPreviewImg'),
   btnAttachAnki: document.getElementById('btnAttachAnki'),
@@ -77,6 +80,7 @@ const elements = {
   inputAnkiField: document.getElementById('inputAnkiField'),
   inputFormatTemplate: document.getElementById('inputFormatTemplate'),
   inputAutoAttach: document.getElementById('inputAutoAttach'),
+  inputAutoMergeLines: document.getElementById('inputAutoMergeLines'),
   inputSoundFeedback: document.getElementById('inputSoundFeedback'),
   selectOcrLang: document.getElementById('selectOcrLang'),
   btnTestAnki: document.getElementById('btnTestAnki'),
@@ -599,6 +603,7 @@ function initEventListeners() {
   elements.btnSubmitCrop.addEventListener('click', handleCropSubmit);
 
   // Results Controls
+  if (elements.btnToggleMergeLines) elements.btnToggleMergeLines.addEventListener('click', toggleMergeLines);
   elements.btnCopyText.addEventListener('click', copyOcrText);
   elements.btnAttachAnki.addEventListener('click', handleAttachToAnki);
   elements.btnNewCapture.addEventListener('click', handleNewCapture);
@@ -1239,9 +1244,11 @@ async function handleCropSubmit() {
     }
 
     const data = await response.json();
-    currentOcrText = data.text ? data.text.trim() : '';
+    rawOcrText = data.text ? data.text.trim() : '';
+    const autoMergePref = localStorage.getItem('anki_auto_merge_lines') === 'true';
+    isLinesMerged = autoMergePref;
+    applyLineMergeState();
 
-    elements.ocrText.textContent = currentOcrText || '(No text detected in this region)';
     elements.detectedLangBadge.textContent = (data.detected_language || ocrLang || 'JA').toUpperCase();
 
     elements.loadingIndicator.classList.add('hidden');
@@ -1249,7 +1256,7 @@ async function handleCropSubmit() {
 
     playSound('ocr');
 
-    if (!currentOcrText) {
+    if (!rawOcrText) {
       showToast('No text detected in cropped region. Try adjusting your crop.', 'info');
     } else if (isAutoAttachEnabled) {
       startAutoAttachPolling();
@@ -1298,7 +1305,14 @@ function handleNewCapture() {
   stopAutoAttachPolling();
   destroyCropper();
   currentCroppedBase64 = null;
+  rawOcrText = '';
   currentOcrText = '';
+  isLinesMerged = false;
+  if (elements.btnToggleMergeLines) {
+    elements.btnToggleMergeLines.classList.remove('active');
+    elements.btnToggleMergeLines.textContent = '☵ Join';
+    elements.btnToggleMergeLines.disabled = true;
+  }
   elements.ocrText.textContent = '';
   elements.cropPreviewImg.src = '';
   elements.btnAttachAnki.disabled = false;
@@ -1334,6 +1348,61 @@ function fallbackCopyText() {
 }
 
 // ==========================================
+// Japanese / Multiline OCR Text Formatting
+// ==========================================
+function formatMergedLines(text) {
+  if (!text) return '';
+  const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  if (lines.length <= 1) return text.trim();
+
+  let merged = lines[0];
+  for (let i = 1; i < lines.length; i++) {
+    const prev = lines[i - 1];
+    const curr = lines[i];
+    // If both ends are alphanumeric ASCII (e.g. English words), join with space
+    if (/[a-zA-Z0-9]$/.test(prev) && /^[a-zA-Z0-9]/.test(curr)) {
+      merged += ' ' + curr;
+    } else {
+      // In Japanese / CJK, join seamlessly without spaces
+      merged += curr;
+    }
+  }
+  return merged;
+}
+
+function toggleMergeLines() {
+  if (!rawOcrText) return;
+  isLinesMerged = !isLinesMerged;
+  applyLineMergeState();
+  playSound('click');
+  showToast(isLinesMerged ? 'Lines joined for Yomitan' : 'Lines split to original format', 'info', 2000);
+}
+
+function applyLineMergeState() {
+  if (!elements.btnToggleMergeLines) return;
+  const lines = rawOcrText.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  const hasMultipleLines = lines.length > 1;
+
+  elements.btnToggleMergeLines.disabled = !hasMultipleLines;
+
+  if (isLinesMerged && hasMultipleLines) {
+    elements.btnToggleMergeLines.classList.add('active');
+    elements.btnToggleMergeLines.textContent = '☵ Split';
+    elements.btnToggleMergeLines.title = 'Split back to original line breaks';
+    currentOcrText = formatMergedLines(rawOcrText);
+  } else {
+    elements.btnToggleMergeLines.classList.remove('active');
+    elements.btnToggleMergeLines.textContent = '☵ Join';
+    elements.btnToggleMergeLines.title = 'Join lines for seamless Yomitan scanning';
+    currentOcrText = rawOcrText;
+  }
+
+  if (elements.ocrText) {
+    elements.ocrText.textContent = currentOcrText || (rawOcrText ? '' : '(No text detected in this region)');
+  }
+}
+
+// ==========================================
 // Settings Modal
 // ==========================================
 function loadSavedSettings() {
@@ -1350,6 +1419,10 @@ function loadSavedSettings() {
 
   if (elements.inputSoundFeedback) {
     elements.inputSoundFeedback.checked = isSoundEnabled;
+  }
+
+  if (elements.inputAutoMergeLines) {
+    elements.inputAutoMergeLines.checked = localStorage.getItem('anki_auto_merge_lines') === 'true';
   }
 
   const savedLang = localStorage.getItem('ocr_lang');
@@ -1382,6 +1455,10 @@ function saveSettings(e) {
   if (elements.inputSoundFeedback) {
     isSoundEnabled = elements.inputSoundFeedback.checked;
     localStorage.setItem('sound_feedback', isSoundEnabled ? 'true' : 'false');
+  }
+
+  if (elements.inputAutoMergeLines) {
+    localStorage.setItem('anki_auto_merge_lines', elements.inputAutoMergeLines.checked ? 'true' : 'false');
   }
 
   AnkiConnect.saveConfig({

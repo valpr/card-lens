@@ -289,6 +289,17 @@ body {
   background-color: var(--bg-card-hover);
 }
 
+.btn-secondary.active {
+  background-color: rgba(56, 189, 248, 0.16);
+  color: var(--accent-cyan);
+  border-color: rgba(56, 189, 248, 0.5);
+}
+
+.btn-secondary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .btn-accent {
   background: linear-gradient(135deg, #10b981, #059669);
   color: white;
