@@ -888,10 +888,17 @@ function loadSavedSettings() {
 function openSettings() {
   loadSavedSettings();
   elements.settingsModal.classList.remove('hidden');
+  document.body.classList.add('modal-open');
+  elements.settingsModal.scrollTop = 0;
+  const content = elements.settingsModal.querySelector('.modal-content');
+  if (content) content.scrollTop = 0;
 }
 
 function closeSettings() {
   elements.settingsModal.classList.add('hidden');
+  if (!elements.setupWizardModal || elements.setupWizardModal.classList.contains('hidden')) {
+    document.body.classList.remove('modal-open');
+  }
 }
 
 function saveSettings(e) {
@@ -950,11 +957,18 @@ function checkFirstTimeSetup() {
 
 function openSetupWizard() {
   elements.setupWizardModal.classList.remove('hidden');
+  document.body.classList.add('modal-open');
+  elements.setupWizardModal.scrollTop = 0;
+  const content = elements.setupWizardModal.querySelector('.modal-content');
+  if (content) content.scrollTop = 0;
   loadWizardDecksAndFields();
 }
 
 function closeSetupWizard(markCompleted = false) {
   elements.setupWizardModal.classList.add('hidden');
+  if (!elements.settingsModal || elements.settingsModal.classList.contains('hidden')) {
+    document.body.classList.remove('modal-open');
+  }
   if (markCompleted) {
     AnkiConnect.setSetupCompleted(true);
   }
