@@ -56,7 +56,7 @@ const elements = {
   ocrText: document.getElementById('ocrText'),
   ocrTextContainer: document.getElementById('ocrTextContainer'),
   ocrTextInput: document.getElementById('ocrTextInput'),
-  ocrEditHint: document.getElementById('ocrEditHint'),
+  miningTip: document.getElementById('miningTip'),
   detectedLangBadge: document.getElementById('detectedLangBadge'),
   focusedOcrBadge: document.getElementById('focusedOcrBadge'),
   btnToggleAutoAttach: document.getElementById('btnToggleAutoAttach'),
@@ -1438,7 +1438,10 @@ function enterOcrEdit() {
   if (elements.ocrText) elements.ocrText.classList.add('hidden');
   if (elements.ocrTextInput) elements.ocrTextInput.classList.remove('hidden');
   if (elements.ocrTextContainer) elements.ocrTextContainer.classList.add('editing');
-  if (elements.ocrEditHint) elements.ocrEditHint.classList.remove('hidden');
+  if (elements.miningTip) {
+    elements.miningTip.innerHTML = '✏️ <strong>Editing mode:</strong> Fix OCR typos above. Tap <strong>✓ Done</strong> (or press Ctrl+Enter) to save for Yomitan.';
+    elements.miningTip.classList.add('editing');
+  }
 
   if (elements.btnEditOcrText) {
     elements.btnEditOcrText.classList.add('active');
@@ -1475,7 +1478,10 @@ function cancelOcrEdit(silent = true) {
   if (elements.ocrTextInput) elements.ocrTextInput.classList.add('hidden');
   if (elements.ocrText) elements.ocrText.classList.remove('hidden');
   if (elements.ocrTextContainer) elements.ocrTextContainer.classList.remove('editing');
-  if (elements.ocrEditHint) elements.ocrEditHint.classList.add('hidden');
+  if (elements.miningTip) {
+    elements.miningTip.innerHTML = '💡 <strong>Mining step:</strong> Tap or drag words above with Yomitan to add an Anki card. Then tap <strong>Attach Image</strong> below.';
+    elements.miningTip.classList.remove('editing');
+  }
 
   if (elements.btnEditOcrText) {
     elements.btnEditOcrText.classList.remove('active');

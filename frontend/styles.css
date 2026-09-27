@@ -595,9 +595,8 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  flex-wrap: wrap;
   gap: 8px;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 
 .result-title-group {
@@ -606,13 +605,15 @@ body {
   gap: 6px;
   flex-wrap: wrap;
   min-width: 0;
+  flex: 1;
 }
 
 .result-actions {
   display: flex;
   align-items: center;
   gap: 6px;
-  flex-shrink: 0;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
 }
 
 .badge {
@@ -681,17 +682,6 @@ body {
   background-color: rgba(24, 24, 27, 0.95);
 }
 
-.edit-hint {
-  font-size: 0.78rem;
-  color: var(--accent-cyan);
-  margin-top: -6px;
-  margin-bottom: 12px;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  line-height: 1.4;
-}
-
 .mining-tip {
   font-size: 0.82rem;
   color: var(--text-secondary);
@@ -701,6 +691,13 @@ body {
   border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
   margin-bottom: 12px;
   line-height: 1.4;
+  transition: background-color 0.2s, border-color 0.2s, color 0.2s;
+}
+
+.mining-tip.editing {
+  background-color: rgba(56, 189, 248, 0.16);
+  border-left-color: var(--accent-cyan);
+  color: var(--text-primary);
 }
 
 /* Action Dock */

@@ -148,12 +148,14 @@
                 <span class="toggle-dot"></span> Auto-Attach: <strong id="autoAttachStateText">OFF</strong>
               </button>
             </div>
-            <div class="result-actions">
-              <button type="button" id="btnToggleMergeLines" class="btn btn-small btn-secondary" title="Merge or split linebreaks for Yomitan scanning">☵ Join</button>
-              <button type="button" id="btnEditOcrText" class="btn btn-small btn-secondary" title="Edit extracted text (E)">✏️ Edit</button>
-              <button id="btnCopyText" class="btn btn-small btn-secondary" title="Copy text to clipboard">📋 Copy</button>
-              <button type="button" id="btnSettingsResult" class="icon-btn-compact" title="Settings" aria-label="Settings">⚙️</button>
-            </div>
+            <button type="button" id="btnSettingsResult" class="icon-btn-compact" title="Settings" aria-label="Settings">⚙️</button>
+          </div>
+
+          <!-- OCR Text Action Toolbar -->
+          <div class="result-actions">
+            <button type="button" id="btnToggleMergeLines" class="btn btn-small btn-secondary" title="Merge or split linebreaks for Yomitan scanning">☵ Join</button>
+            <button type="button" id="btnEditOcrText" class="btn btn-small btn-secondary" title="Edit extracted text (E)">✏️ Edit</button>
+            <button id="btnCopyText" class="btn btn-small btn-secondary" title="Copy text to clipboard">📋 Copy</button>
           </div>
 
           <!-- Selectable Japanese text container for Yomitan -->
@@ -161,7 +163,6 @@
             <p id="ocrText" class="ocr-text" tabindex="0" lang="ja"></p>
             <textarea id="ocrTextInput" class="ocr-text-input hidden" lang="ja" spellcheck="false" placeholder="Edit Japanese text here..."></textarea>
           </div>
-          <div id="ocrEditHint" class="edit-hint hidden">💡 Edit text directly above. Click <strong>✓ Done</strong> (or press Ctrl+Enter) to save for Yomitan.</div>
 
           <!-- Auto-Attach Polling Indicator Banner -->
           <div id="pollingBanner" class="polling-banner hidden">
@@ -173,8 +174,8 @@
             <button type="button" id="btnCancelPolling" class="btn btn-secondary btn-small">Cancel</button>
           </div>
 
-          <!-- Card Mining Instructions -->
-          <div class="mining-tip">
+          <!-- Card Mining Instructions / Edit Mode Banner -->
+          <div class="mining-tip" id="miningTip">
             💡 <strong>Mining step:</strong> Tap or drag words above with Yomitan to add an Anki card. Then tap <strong>Attach Image</strong> below.
           </div>
 
