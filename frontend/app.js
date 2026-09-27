@@ -13,6 +13,13 @@ let pollingCountdownInterval = null;
 let snapshotNoteIds = new Set();
 let isPolling = false;
 
+// Tracing / Focus State
+let currentCropMode = 'crop'; // 'crop' | 'trace'
+let traceStrokes = []; // Array of strokes, each is array of {x, y}
+let traceBounds = null; // { minX, minY, maxX, maxY }
+let isDrawingTrace = false;
+let currentStroke = [];
+
 // DOM Elements
 const stages = {
   capture: document.getElementById('captureSection'),
@@ -25,7 +32,14 @@ const elements = {
   galleryInput: document.getElementById('galleryInput'),
   dropZone: document.getElementById('dropZone'),
   
+  // Crop & Trace
+  btnModeCrop: document.getElementById('btnModeCrop'),
+  btnModeTrace: document.getElementById('btnModeTrace'),
+  traceActiveBadge: document.getElementById('traceActiveBadge'),
   imageToCrop: document.getElementById('imageToCrop'),
+  traceCanvas: document.getElementById('traceCanvas'),
+  traceGuide: document.getElementById('traceGuide'),
+  btnClearTrace: document.getElementById('btnClearTrace'),
   filterChips: document.getElementById('filterChips'),
   btnRotateLeft: document.getElementById('btnRotateLeft'),
   btnRotateRight: document.getElementById('btnRotateRight'),
@@ -38,6 +52,7 @@ const elements = {
   ocrCard: document.getElementById('ocrCard'),
   ocrText: document.getElementById('ocrText'),
   detectedLangBadge: document.getElementById('detectedLangBadge'),
+  focusedOcrBadge: document.getElementById('focusedOcrBadge'),
   btnToggleAutoAttach: document.getElementById('btnToggleAutoAttach'),
   autoAttachStateText: document.getElementById('autoAttachStateText'),
   pollingBanner: document.getElementById('pollingBanner'),
@@ -187,6 +202,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initServiceWorker();
   initEventListeners();
   initFilterControls();
+  initTraceControls();
   initKeyboardShortcuts();
   loadSavedSettings();
   checkFirstTimeSetup();
@@ -571,6 +587,7 @@ function initEventListeners() {
   elements.btnResetCrop.addEventListener('click', () => {
     if (cropper) {
       cropper.reset();
+      clearTrace();
       playSound('click');
     }
   });
@@ -679,7 +696,15 @@ function initCropper(imageUrl) {
     cropBoxMovable: true,
     cropBoxResizable: true,
     toggleDragModeOnDblclick: false,
-    responsive: true
+    responsive: true,
+    ready() {
+      resizeTraceCanvas();
+      setCropMode('crop');
+      clearTrace();
+    },
+    crop() {
+      renderTraceCanvas();
+    }
   });
 }
 
@@ -688,6 +713,8 @@ function destroyCropper() {
     cropper.destroy();
     cropper = null;
   }
+  clearTrace();
+  setCropMode('crop');
   elements.imageToCrop.src = '';
   elements.imageToCrop.style.filter = 'none';
   currentFilter = 'normal';
@@ -699,6 +726,294 @@ function destroyCropper() {
       c.setAttribute('aria-checked', isNorm ? 'true' : 'false');
     });
   }
+}
+
+// ==========================================
+// Drawing / Tracing Text Focus Controller
+// ==========================================
+function initTraceControls() {
+  if (!elements.traceCanvas) return;
+
+  const canvas = elements.traceCanvas;
+
+  canvas.addEventListener('pointerdown', (e) => {
+    if (currentCropMode !== 'trace') return;
+    canvas.setPointerCapture(e.pointerId);
+    isDrawingTrace = true;
+
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    currentStroke = [{ x, y }];
+    traceStrokes.push(currentStroke);
+    renderTraceCanvas();
+  });
+
+  canvas.addEventListener('pointermove', (e) => {
+    if (!isDrawingTrace) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    currentStroke.push({ x, y });
+    renderTraceCanvas();
+  });
+
+  const finishStroke = () => {
+    if (!isDrawingTrace) return;
+    isDrawingTrace = false;
+    calculateTraceBounds();
+    renderTraceCanvas();
+    updateTraceUI();
+    playSound('pop');
+  };
+
+  canvas.addEventListener('pointerup', finishStroke);
+  canvas.addEventListener('pointercancel', finishStroke);
+
+  if (elements.btnModeCrop) {
+    elements.btnModeCrop.addEventListener('click', () => setCropMode('crop'));
+  }
+  if (elements.btnModeTrace) {
+    elements.btnModeTrace.addEventListener('click', () => setCropMode('trace'));
+  }
+  if (elements.btnClearTrace) {
+    elements.btnClearTrace.addEventListener('click', clearTrace);
+  }
+
+  window.addEventListener('resize', () => {
+    if (stages.crop.classList.contains('active')) {
+      resizeTraceCanvas();
+    }
+  });
+}
+
+function resizeTraceCanvas() {
+  if (!elements.traceCanvas || !elements.imageToCrop) return;
+  const wrapper = elements.imageToCrop.parentElement;
+  if (!wrapper) return;
+
+  const rect = wrapper.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+
+  elements.traceCanvas.width = rect.width * dpr;
+  elements.traceCanvas.height = rect.height * dpr;
+  elements.traceCanvas.style.width = `${rect.width}px`;
+  elements.traceCanvas.style.height = `${rect.height}px`;
+
+  const ctx = elements.traceCanvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  renderTraceCanvas();
+}
+
+function setCropMode(mode) {
+  currentCropMode = mode;
+  if (mode === 'crop') {
+    if (elements.btnModeCrop) {
+      elements.btnModeCrop.classList.add('active');
+      elements.btnModeCrop.setAttribute('aria-selected', 'true');
+    }
+    if (elements.btnModeTrace) {
+      elements.btnModeTrace.classList.remove('active');
+      elements.btnModeTrace.setAttribute('aria-selected', 'false');
+    }
+    if (elements.traceCanvas) {
+      elements.traceCanvas.classList.remove('active');
+    }
+    if (elements.traceGuide) {
+      elements.traceGuide.classList.add('hidden');
+    }
+    if (cropper) {
+      cropper.enable();
+    }
+  } else {
+    if (elements.btnModeCrop) {
+      elements.btnModeCrop.classList.remove('active');
+      elements.btnModeCrop.setAttribute('aria-selected', 'false');
+    }
+    if (elements.btnModeTrace) {
+      elements.btnModeTrace.classList.add('active');
+      elements.btnModeTrace.setAttribute('aria-selected', 'true');
+    }
+    if (elements.traceCanvas) {
+      elements.traceCanvas.classList.add('active');
+    }
+    if (elements.traceGuide) {
+      elements.traceGuide.classList.remove('hidden');
+    }
+    resizeTraceCanvas();
+    if (cropper) {
+      cropper.disable();
+    }
+  }
+}
+
+function calculateTraceBounds() {
+  if (traceStrokes.length === 0) {
+    traceBounds = null;
+    return;
+  }
+
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  let hasPoints = false;
+
+  traceStrokes.forEach(stroke => {
+    stroke.forEach(pt => {
+      hasPoints = true;
+      if (pt.x < minX) minX = pt.x;
+      if (pt.y < minY) minY = pt.y;
+      if (pt.x > maxX) maxX = pt.x;
+      if (pt.y > maxY) maxY = pt.y;
+    });
+  });
+
+  if (hasPoints) {
+    const radius = 14;
+    traceBounds = {
+      minX: Math.max(0, minX - radius),
+      minY: Math.max(0, minY - radius),
+      maxX: maxX + radius,
+      maxY: maxY + radius
+    };
+  } else {
+    traceBounds = null;
+  }
+}
+
+function renderTraceCanvas() {
+  if (!elements.traceCanvas) return;
+  const ctx = elements.traceCanvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  const w = elements.traceCanvas.width / dpr;
+  const h = elements.traceCanvas.height / dpr;
+
+  ctx.clearRect(0, 0, w, h);
+
+  if (traceStrokes.length === 0) return;
+
+  // 1. Draw glowing highlighter strokes (Google Lens style cyan)
+  ctx.save();
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
+  ctx.shadowColor = 'rgba(56, 189, 248, 0.6)';
+  ctx.shadowBlur = 12;
+  ctx.strokeStyle = 'rgba(56, 189, 248, 0.45)';
+  ctx.lineWidth = 26;
+
+  traceStrokes.forEach(stroke => {
+    if (stroke.length < 2) return;
+    ctx.beginPath();
+    ctx.moveTo(stroke[0].x, stroke[0].y);
+    for (let i = 1; i < stroke.length; i++) {
+      ctx.lineTo(stroke[i].x, stroke[i].y);
+    }
+    ctx.stroke();
+  });
+
+  // Core stroke
+  ctx.shadowBlur = 0;
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.65)';
+  ctx.lineWidth = 14;
+  traceStrokes.forEach(stroke => {
+    if (stroke.length < 2) return;
+    ctx.beginPath();
+    ctx.moveTo(stroke[0].x, stroke[0].y);
+    for (let i = 1; i < stroke.length; i++) {
+      ctx.lineTo(stroke[i].x, stroke[i].y);
+    }
+    ctx.stroke();
+  });
+  ctx.restore();
+
+  // 2. Draw neat focus bounding box around all strokes when finished drawing
+  if (!isDrawingTrace && traceBounds) {
+    const { minX, minY, maxX, maxY } = traceBounds;
+    const pad = 6;
+    const bx = minX - pad;
+    const by = minY - pad;
+    const bw = (maxX - minX) + pad * 2;
+    const bh = (maxY - minY) + pad * 2;
+
+    ctx.save();
+    // Dashed focus box
+    ctx.strokeStyle = '#38bdf8';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([5, 4]);
+    ctx.strokeRect(bx, by, bw, bh);
+
+    // Corner brackets
+    ctx.setLineDash([]);
+    ctx.lineWidth = 3;
+    const corner = Math.min(10, bw / 4, bh / 4);
+
+    ctx.beginPath();
+    ctx.moveTo(bx, by + corner);
+    ctx.lineTo(bx, by);
+    ctx.lineTo(bx + corner, by);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(bx + bw - corner, by);
+    ctx.lineTo(bx + bw);
+    ctx.lineTo(bx + bw, by + corner);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(bx, by + bh - corner);
+    ctx.lineTo(bx, by + bh);
+    ctx.lineTo(bx + corner, by + bh);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(bx + bw - corner, by + bh);
+    ctx.lineTo(bx + bw);
+    ctx.lineTo(bx + bw, by + bh - corner);
+    ctx.stroke();
+
+    // Badge label
+    const tag = '🎯 OCR Focus';
+    ctx.font = 'bold 11px sans-serif';
+    const tagW = ctx.measureText(tag).width + 8;
+    const tagY = Math.max(16, by - 4);
+
+    ctx.fillStyle = 'rgba(18, 18, 20, 0.85)';
+    ctx.fillRect(bx, tagY - 12, tagW, 14);
+    ctx.fillStyle = '#38bdf8';
+    ctx.fillText(tag, bx + 4, tagY - 1);
+
+    ctx.restore();
+  }
+}
+
+function updateTraceUI() {
+  const hasTrace = traceBounds !== null;
+  if (elements.traceActiveBadge) {
+    elements.traceActiveBadge.classList.toggle('hidden', !hasTrace);
+  }
+  if (elements.btnClearTrace) {
+    elements.btnClearTrace.classList.toggle('hidden', !hasTrace);
+  }
+  const guideText = elements.traceGuide?.querySelector('.trace-guide-text');
+  if (guideText) {
+    guideText.textContent = hasTrace 
+      ? '✓ Text focused! Extract below or trace again' 
+      : '👆 Trace with finger over text to focus OCR';
+  }
+  const submitText = elements.btnSubmitCrop?.querySelector('.btn-text');
+  if (submitText) {
+    submitText.textContent = hasTrace ? 'Extract Focused Text ➔' : 'Extract Text ➔';
+  }
+}
+
+function clearTrace() {
+  traceStrokes = [];
+  traceBounds = null;
+  currentStroke = [];
+  renderTraceCanvas();
+  updateTraceUI();
 }
 
 // ==========================================
@@ -715,25 +1030,69 @@ async function handleCropSubmit() {
     return;
   }
 
-  // Extract cropped region as high-resolution canvas
-  const canvas = cropper.getCroppedCanvas({
+  // Extract outer cropped region as high-resolution canvas (for the Anki card)
+  const cardCanvas = cropper.getCroppedCanvas({
     maxWidth: 2048,
     maxHeight: 2048,
     imageSmoothingEnabled: true,
     imageSmoothingQuality: 'high'
   });
 
-  if (!canvas) {
+  if (!cardCanvas) {
     showToast('Unable to extract cropped area.', 'error');
     playSound('error');
     return;
   }
 
-  // Apply pixel pre-processing filter (contrast, sharpen, invert, grayscale)
-  applyCanvasFilter(canvas, currentFilter);
+  // Determine OCR target canvas: Traced sub-region vs full card canvas
+  let ocrCanvas = cardCanvas;
+  let isTraceUsed = false;
 
-  currentCroppedBase64 = canvas.toDataURL('image/jpeg', 0.92);
+  if (traceBounds && cropper) {
+    const cropBox = cropper.getCropBoxData();
+    if (cropBox && cropBox.width > 0 && cropBox.height > 0) {
+      // Find intersection between trace bounds and crop box
+      const interMinX = Math.max(cropBox.left, traceBounds.minX);
+      const interMinY = Math.max(cropBox.top, traceBounds.minY);
+      const interMaxX = Math.min(cropBox.left + cropBox.width, traceBounds.maxX);
+      const interMaxY = Math.min(cropBox.top + cropBox.height, traceBounds.maxY);
+
+      if (interMaxX > interMinX && interMaxY > interMinY) {
+        // Calculate relative coordinates inside cropped card canvas
+        const normX1 = (interMinX - cropBox.left) / cropBox.width;
+        const normY1 = (interMinY - cropBox.top) / cropBox.height;
+        const normX2 = (interMaxX - cropBox.left) / cropBox.width;
+        const normY2 = (interMaxY - cropBox.top) / cropBox.height;
+
+        // Add 4% margin around focused text so furigana and kanji strokes aren't clipped
+        const padX = cardCanvas.width * 0.04;
+        const padY = cardCanvas.height * 0.04;
+
+        const subX = Math.max(0, Math.floor(normX1 * cardCanvas.width - padX));
+        const subY = Math.max(0, Math.floor(normY1 * cardCanvas.height - padY));
+        const subW = Math.min(cardCanvas.width - subX, Math.ceil((normX2 - normX1) * cardCanvas.width + padX * 2));
+        const subH = Math.min(cardCanvas.height - subY, Math.ceil((normY2 - normY1) * cardCanvas.height + padY * 2));
+
+        if (subW > 16 && subH > 16) {
+          const subCanvas = document.createElement('canvas');
+          subCanvas.width = subW;
+          subCanvas.height = subH;
+          const subCtx = subCanvas.getContext('2d');
+          subCtx.drawImage(cardCanvas, subX, subY, subW, subH, 0, 0, subW, subH);
+          ocrCanvas = subCanvas;
+          isTraceUsed = true;
+        }
+      }
+    }
+  }
+
+  // The Card Picture for Anki is ALWAYS the full framed card canvas
+  currentCroppedBase64 = cardCanvas.toDataURL('image/jpeg', 0.92);
   elements.cropPreviewImg.src = currentCroppedBase64;
+
+  // Apply pixel enhancement filter to OCR target
+  applyCanvasFilter(ocrCanvas, currentFilter);
+  const ocrPayload = ocrCanvas.toDataURL('image/jpeg', 0.95);
 
   // Transition to Results & Loading state
   switchStage('result');
@@ -741,6 +1100,10 @@ async function handleCropSubmit() {
   elements.ocrCard.classList.add('hidden');
   elements.btnAttachAnki.disabled = false;
   elements.btnAttachAnki.innerHTML = '<span class="btn-text">📎 Attach Image to Card</span>';
+
+  if (elements.focusedOcrBadge) {
+    elements.focusedOcrBadge.classList.toggle('hidden', !isTraceUsed);
+  }
 
   const ocrLang = localStorage.getItem('ocr_lang') || 'ja';
 
@@ -751,7 +1114,7 @@ async function handleCropSubmit() {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        image: currentCroppedBase64,
+        image: ocrPayload,
         language: ocrLang || null
       })
     });
