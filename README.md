@@ -181,13 +181,13 @@ When you open `http://localhost:5050` for the first time, the **Setup Wizard** w
 
 #### 💻 PC / Desktop Setup
 - **Option 1: AnkiConnect:** Quickly copy the add-on code (`2055492159`), click **"✨ Auto-Detect from Recent Anki Card"**, and CardLens will automatically populate your target deck and picture field!
-- **Option 2: ⚡ Clipboard Mode:** 1-Click to activate standalone mode without AnkiConnect.
-- **Option 3: 📁 Import Yomitan Settings JSON:** Drop your `yomitan-settings.json` exported from Yomitan to configure deck/fields instantly.
+- **Option 2: 📁 Import Yomitan Settings JSON:** Drop your `yomitan-settings.json` exported from Yomitan to configure deck/fields instantly.
+- **Option 3: ⚡ Clipboard Mode:** 1-Click to activate standalone mode without AnkiConnect.
 
 #### 📱 Mobile (Android) Setup
 - **Option 1: AnkiConnect Android:** Connect directly to AnkiDroid / AnkiConnect Android (`localhost:8765`) and auto-detect your card.
-- **Option 2: 📁 Import Yomitan Settings JSON.**
-- **Option 3: ⚡ Clipboard Mode.**
+- **Option 2: 📁 Import Yomitan Settings JSON:** Drop your `yomitan-settings.json` exported from Yomitan to configure deck/fields instantly.
+- **Option 3: ⚡ Clipboard Mode:** 1-Click to activate standalone mode without AnkiConnect.
 
 You can switch workflow modes or re-run the wizard anytime from the **⚙️ Settings** modal.
 

@@ -65,7 +65,7 @@
           <div class="section-title-bar">
             <div class="section-title-actions">
               <button type="button" id="btnSettingsCrop" class="icon-btn-compact" title="Settings" aria-label="Settings">⚙️</button>
-              <button id="btnCancelCrop" class="text-btn">Change Photo</button>
+              <button id="btnCancelCrop" class="text-btn">Change Image</button>
             </div>
           </div>
           
@@ -275,7 +275,7 @@
           </div>
 
           <div class="form-group">
-            <label for="inputFormatTemplate">Card Image Field Template</label>
+            <label for="inputFormatTemplate">Image Field Template</label>
             <input type="text" id="inputFormatTemplate" value='<img src="{filename}">' placeholder='<img src="{filename}">'>
             <small class="form-hint">HTML template for card field. Use <code>{filename}</code> for image file name.</small>
           </div>
@@ -363,7 +363,7 @@
           <div class="wizard-card-option" id="wizardOptionDesktopAnki">
             <div class="option-header">
               <span class="option-badge">Recommended</span>
-              <h3>🔌 Option 1: Connect to Anki Desktop</h3>
+              <h3>🔌 Option 1: AnkiConnect Desktop</h3>
             </div>
             <p class="option-desc">Connect directly to Anki Desktop on your PC (<code>localhost:8765</code>):</p>
             
@@ -416,33 +416,10 @@
             <span>OR</span>
           </div>
 
-          <!-- Desktop Option 2: Clipboard Mode (Zero setup) -->
-          <div class="wizard-card-option" id="wizardOptionClipboard">
-            <div class="option-header">
-              <span class="option-badge option-badge-cyan">Zero Setup</span>
-              <h3>⚡ Option 2: Clipboard Mode (No AnkiConnect Needed)</h3>
-            </div>
-            <p class="option-desc">
-              Don't have AnkiConnect? No problem! Use CardLens in standalone Clipboard mode:
-            </p>
-            <ul class="clipboard-feature-list">
-              <li>📋 Paste screenshots directly (<code>Ctrl+V</code>) into CardLens</li>
-              <li>🔍 Scan text with Google Lens OCR & hover with Yomitan</li>
-              <li>🖼️ 1-Click <strong>Copy Image (I)</strong> or <strong>Copy Text</strong> to paste (<code>Ctrl+V</code>) into Anki Desktop</li>
-            </ul>
-            <button type="button" id="btnStartClipboardModeDesktop" class="btn btn-accent btn-small" style="width: 100%; margin-top: 8px;">
-              ⚡ Start in Clipboard Mode
-            </button>
-          </div>
-
-          <div class="wizard-divider">
-            <span>OR</span>
-          </div>
-
-          <!-- Desktop Option 3: Yomitan Settings Import -->
+          <!-- Desktop Option 2: Yomitan Settings Import -->
           <div class="wizard-card-option" id="wizardOptionYomitanDesktop">
             <div class="option-header">
-              <h3>📁 Option 3: Import Yomitan Settings JSON</h3>
+              <h3>📁 Option 2: Import Yomitan Settings JSON</h3>
             </div>
             <p class="option-desc">Export your settings in Yomitan (<em>Settings → Backup → Export Settings</em>) and upload below:</p>
             
@@ -471,6 +448,29 @@
                 ✓ Confirm & Apply Settings
               </button>
             </div>
+          </div>
+
+          <div class="wizard-divider">
+            <span>OR</span>
+          </div>
+
+          <!-- Desktop Option 3: Clipboard Mode (Zero setup) -->
+          <div class="wizard-card-option" id="wizardOptionClipboard">
+            <div class="option-header">
+              <span class="option-badge option-badge-cyan">Zero Setup</span>
+              <h3>⚡ Option 3: Clipboard Mode (No AnkiConnect Needed)</h3>
+            </div>
+            <p class="option-desc">
+              Don't have AnkiConnect? No problem! Use CardLens in standalone Clipboard mode:
+            </p>
+            <ul class="clipboard-feature-list">
+              <li>📋 Paste screenshots directly (<code>Ctrl+V</code>) into CardLens</li>
+              <li>🔍 Scan text with Google Lens OCR & hover with Yomitan</li>
+              <li>🖼️ 1-Click <strong>Copy Image (I)</strong> or <strong>Copy Text</strong> to paste (<code>Ctrl+V</code>) into Anki Desktop</li>
+            </ul>
+            <button type="button" id="btnStartClipboardModeDesktop" class="btn btn-accent btn-small" style="width: 100%; margin-top: 8px;">
+              ⚡ Start in Clipboard Mode
+            </button>
           </div>
         </div>
 

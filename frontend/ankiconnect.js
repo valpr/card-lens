@@ -16,7 +16,7 @@ const AnkiConnect = {
     if (mobile) {
       return `Cannot connect to AnkiConnect at ${url}. Ensure the AnkiConnect Android app is open and service is Started.`;
     }
-    return `Cannot connect to AnkiConnect at ${url}. Ensure Anki Desktop is running with the Anki-Connect add-on installed (code: 2055492159).`;
+    return `Cannot connect to AnkiConnect at ${url}. Ensure Anki Desktop is running with the AnkiConnect add-on installed (code: 2055492159).`;
   },
 
   getProxyUrl() {
