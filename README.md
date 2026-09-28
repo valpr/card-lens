@@ -14,19 +14,12 @@ When immersing in Japanese through games, manga, visual novels, or physical book
 - 🆓 **Free & self-hosted.** No accounts, no API keys, no subscriptions. The server runs on your own device and uses Google Lens for OCR — no paid cloud services required.
 
 **CardLens automates the entire visual mining loop:**
-- 📸 **Any Image Source:** Snap a photo of a screen or book, import gallery screenshots, drag-and-drop, or paste directly from your clipboard (`Ctrl+V`).
-- ✂️ **Touch-Friendly Cropper:** Crop directly to the dialogue box with pinch/drag controls, 90° rotation, and offline-vendored Cropper.js.
-- 🎨 **Image Pre-Processing Filters:** Real-time canvas filters (Contrast boost, Sharpen, Invert colors, B&W / Grayscale) with live preview to clarify low-contrast or stylized game text before OCR.
-- 🔍 **Google Lens OCR Backend:** High-accuracy multilingual text recognition (Japanese, Chinese, Korean, English, Spanish, French, German, Russian, Arabic, etc.) with automatic language detection powered by `chrome-lens-py`.
-- 📖 **Dictionary & Mining Ready:** Renders clean, selectable typography with script-aware line merging (continuous CJK joining, European de-hyphenation, Hangul spacing, RTL support) designed for Yomitan, Zhongwen, and browser dictionary extensions.
-- 🤖 **Auto-Attach Mode:** Pre-polls recent notes and automatically detects newly created cards from Yomitan/Anki via diff polling, attaching the screenshot seamlessly with a visual progress dock and cancel/attach buttons.
-- 🎴 **1-Tap Anki Attachment:** Manual fallback to upload the cropped image into Anki's media collection and attach it to the latest card via AnkiConnect (`localhost:8765`).
-- 🔊 **Synthetic Audio Cues:** Zero-dependency Web Audio clicks, OCR blips, and card attach chimes (with a toggle in Settings).
-- ⌨️ **Desktop Shortcuts:** Full keyboard workflow (`Enter` to crop, `R`/`Shift+R` to rotate, `A` to attach, `N` for new capture, `Esc` to cancel).
-- 📝 **Custom Field Formatting:** Customize the image tag template (e.g. `<img src="{filename}">` or custom wrapper divs) in Settings.
-- ✨ **1-Tap Anki Auto-Detection:** Automatically detect your target deck and picture field directly from your latest card via AnkiConnect (or import Yomitan settings JSON).
-- 🛡️ **Zero Port Conflicts:** Serves on port `5050` by default, avoiding collision with Android Wireless ADB (`port 5555`).
-- 📱 **Installable PWA:** Installs directly to your Android home screen as a standalone, fullscreen app with offline-cached app shell.
+- 📸 **Capture from anywhere.** Snap a photo, import a screenshot, drag-and-drop, or paste from your clipboard (`Ctrl+V`).
+- ✂️ **Crop & enhance.** Pinch-to-crop on mobile or drag on desktop, with optional filters (contrast, sharpen, invert) to clean up stylized game text.
+- 🔍 **Google Lens OCR.** High-accuracy multilingual text recognition with automatic language detection.
+- 📖 **Dictionary-ready output.** Clean, selectable text designed for Yomitan and other browser dictionary extensions — tap a word to look it up instantly.
+- 🎴 **Automatic Anki attachment.** Creates and attaches the cropped screenshot to your newest card automatically, or with one tap.
+- 📱 **Runs on Android & desktop.** Installable as a PWA on your phone or as a local server on Windows, macOS, and Linux.
 
 ---
 
@@ -187,12 +180,12 @@ CardLens on PC supports two streamlined workflows:
 When you open `http://localhost:5050` for the first time, the **Setup Wizard** welcomes you with dedicated platform tabs:
 
 #### 💻 PC / Desktop Setup
-- **Option 1: Live Anki Desktop Connection:** Quickly copy the add-on code (`2055492159`), click **"✨ Auto-Detect from Recent Anki Card"**, and CardLens will automatically populate your target deck and picture field!
+- **Option 1: AnkiConnect:** Quickly copy the add-on code (`2055492159`), click **"✨ Auto-Detect from Recent Anki Card"**, and CardLens will automatically populate your target deck and picture field!
 - **Option 2: ⚡ Clipboard Mode:** 1-Click to activate standalone mode without AnkiConnect.
 - **Option 3: 📁 Import Yomitan Settings JSON:** Drop your `yomitan-settings.json` exported from Yomitan to configure deck/fields instantly.
 
 #### 📱 Mobile (Android) Setup
-- **Option 1: Live AnkiConnect Android:** Connect directly to AnkiDroid / AnkiConnect Android (`localhost:8765`) and auto-detect your card.
+- **Option 1: AnkiConnect Android:** Connect directly to AnkiDroid / AnkiConnect Android (`localhost:8765`) and auto-detect your card.
 - **Option 2: 📁 Import Yomitan Settings JSON.**
 - **Option 3: ⚡ Clipboard Mode.**
 
