@@ -7,13 +7,13 @@
 
 ## 🌟 Why CardLens?
 
-When immersing in Japanese through games, manga, visual novels, or physical books, turning an unfamiliar sentence into an Anki flashcard shouldn't require expensive hardware or tedious manual work.
+When immersing in Japanese through games, manga, visual novels, or physical books, turning an unfamiliar sentence into an Anki flashcard should have as little friction as possible.
 
-- 🎮 **No capture card required.** Just snap a photo of your Switch, TV, Steam Deck, or handheld screen with your phone. No HDMI splitter, no streaming software, no cables.
-- 📚 **Works with any source.** Physical novels, manga volumes, game screenshots, visual novels, emulators, web pages — if you can see it or photograph it, CardLens can read it.
+- 🎮 **No capture card required.** Just snap a photo of your Switch, TV, Steam Deck, or handheld screen with your phone.
+- 📚 **Works with any source.** Physical novels, manga volumes, game screenshots, visual novels, emulators, hard-coded subs.
 - 🆓 **Free & self-hosted.** No accounts, no API keys, no subscriptions. The server runs on your own device and uses Google Lens for OCR — no paid cloud services required.
 
-**CardLens automates the entire visual mining loop:**
+**CardLens is a guide through the visual mining loop:**
 - 📸 **Capture from anywhere.** Snap a photo, import a screenshot, drag-and-drop, or paste from your clipboard (`Ctrl+V`).
 - ✂️ **Crop & enhance.** Pinch-to-crop on mobile or drag on desktop, with optional filters (contrast, sharpen, invert) to clean up stylized game text.
 - 🔍 **Google Lens OCR.** High-accuracy multilingual text recognition with automatic language detection.
