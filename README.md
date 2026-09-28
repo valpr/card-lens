@@ -82,7 +82,7 @@ When immersing in Japanese through games, manga, visual novels, or physical book
 #### Step 2: Run the 1-Line Termux Setup
 Open **Termux** on your phone and paste this single command:
 ```bash
-pkg update -y && pkg install -y curl && curl -sL https://raw.githubusercontent.com/valpr/card-lens/main/setup_termux.sh | bash
+apt update && apt full-upgrade -y && apt install -y curl && curl -sL https://raw.githubusercontent.com/valpr/card-lens/main/setup_termux.sh | bash
 ```
 *What this automated script does:*
 - Updates packages and installs `python`, `git`, and build tools
@@ -118,43 +118,52 @@ Pick whichever method you prefer:
 
 ### 2. Desktop Setup (Windows / macOS / Linux)
 
-You can run CardLens on your computer to mine cards from PC games, visual novels, emulators, or manga readers:
+#### ⚡ Method A: Standalone 1-Click App (Recommended — No Python or Git Needed!)
 
-1. **Clone & Create Virtual Environment:**
-   ```bash
-   git clone https://github.com/valpr/card-lens.git
-   cd card-lens
-   python -m venv venv
-   ```
+1. Go to **[CardLens Releases](https://github.com/valpr/card-lens/releases)** and download the package for your OS:
+   - **Windows:** `CardLens-Windows-x64.zip`
+   - **macOS:** `CardLens-macOS.zip`
+   - **Linux:** `CardLens-Linux-x64.tar.gz`
+2. Extract the archive and double-click **`CardLens`** (`CardLens.exe` on Windows).
+3. The server starts immediately and opens `http://localhost:5050` in your default browser!
 
-2. **Activate the Virtual Environment:**
-   ```bash
-   # Windows (PowerShell):
-   venv\Scripts\Activate.ps1
+---
 
-   # Windows (cmd):
-   venv\Scripts\activate.bat
+#### 🐳 Method B: Docker / Home Server (Mine from Phone Without Termux!)
 
-   # macOS / Linux:
-   source venv/bin/activate
-   ```
+Run CardLens 24/7 on your PC or home server (Raspberry Pi, NAS, Unraid) so any phone or device on your Wi-Fi can mine without installing Termux:
 
-3. **Install Dependencies:**
-   ```bash
-   pip install -r requirements.txt
-   ```
+```bash
+docker run -d -p 5050:5050 --name cardlens --restart unless-stopped ghcr.io/valpr/card-lens:latest
+```
 
-4. **Launch the Server:**
-   ```bash
-   uvicorn main:app --host 127.0.0.1 --port 5050
-   ```
+*Or with Docker Compose:*
+```bash
+docker compose up -d
+```
+Then simply open `http://<your-computer-ip>:5050` in your phone's browser!
 
-5. **Open the App:**
-   - Navigate to `http://localhost:5050` in your browser.
-   - Use clipboard paste (`Ctrl+V`) to paste any screenshot immediately into the cropper!
+---
 
-> [!TIP]
-> You'll need to activate the virtual environment (`venv`) each time you open a new terminal before running `uvicorn`. The `(venv)` prefix in your prompt confirms it's active.
+#### 🐍 Method C: Python / CLI Setup (For Developers)
+
+```bash
+# Option 1: Run directly with pipx
+pipx run cardlens
+
+# Option 2: Clone & run in virtual environment
+git clone https://github.com/valpr/card-lens.git
+cd card-lens
+python -m venv venv
+
+# Windows (PowerShell):
+venv\Scripts\Activate.ps1
+# macOS / Linux:
+source venv/bin/activate
+
+pip install -r requirements.txt
+python main.py
+```
 
 #### 💻 PC Mining Workflows: Choose What Works Best for You
 
@@ -266,9 +275,14 @@ bash test_ankiconnect.sh
 card-lens/
 ├── .github/
 │   └── workflows/
-│       └── ci.yml            # Automated CI workflow
+│       ├── ci.yml            # Automated CI workflow
+│       └── release.yml       # Multi-platform binaries, Docker & GitHub Releases
+├── cardlens.spec             # PyInstaller desktop bundle specification
+├── Dockerfile                # Multi-arch container image
+├── docker-compose.yml        # Docker Compose configuration
+├── pyproject.toml            # Python packaging & pipx configuration
 ├── main.py                   # Starlette ASGI backend & OCR endpoint (POST /ocr)
-├── run.sh                    # Server launcher with auto-update git pull & address banner
+├── run.sh                    # Server launcher & non-destructive updater
 ├── requirements.txt          # Python dependencies
 ├── setup_termux.sh           # Automated Termux installation script (Port 5050)
 ├── test_ankiconnect.sh       # Bash verification script for AnkiConnect
@@ -276,7 +290,8 @@ card-lens/
 ├── README.md                 # Project documentation & user guide
 ├── tests/
 │   ├── test_api.py           # Backend API unit tests & static mount validation
-│   └── test_ankiconnect.mjs  # AnkiConnect JS client unit tests
+│   ├── test_ankiconnect.mjs  # AnkiConnect JS client unit tests
+│   └── test_line_merging.mjs # Line merging JS tests
 └── frontend/
     ├── index.html            # PWA single-page interface
     ├── styles.css            # Dark OLED console styling
@@ -284,7 +299,7 @@ card-lens/
     ├── ankiconnect.js        # AnkiConnect API client module & auto-attach polling
     ├── manifest.json         # PWA web app manifest (CardLens)
     ├── sw.js                 # Service Worker (app shell offline caching)
-    ├── icons/                # PWA app icons (192x192, 512x512, favicon)
+    ├── icons/                # PWA app icons (192x192, 512x512, favicon, icon.ico)
     └── vendor/
         └── cropperjs/        # Vendored Cropper.js (offline ready)
 ```

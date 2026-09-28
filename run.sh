@@ -28,6 +28,29 @@ HOST="${HOST:-0.0.0.0}"
 PID_FILE="$DIR/.cardlens.pid"
 
 # ----------------------------------------------------
+# Handle 'update' subcommand
+# ----------------------------------------------------
+if [ "$1" = "update" ]; then
+  echo "=== CardLens: Updating to latest version ==="
+  if [ -d "$DIR/.git" ]; then
+    if git -c http.connectTimeout=10 fetch origin main; then
+      git reset --hard origin/main
+      chmod +x "$DIR/run.sh" "$DIR/setup_termux.sh" 2>/dev/null || true
+      if [ -f "$DIR/venv/bin/pip" ]; then
+        "$DIR/venv/bin/pip" install --extra-index-url https://termux-user-repository.github.io/pypi/ -r "$DIR/requirements.txt"
+      fi
+      echo "CardLens updated successfully to $(git rev-parse --short HEAD)!"
+    else
+      echo "Error: Could not connect to GitHub to update."
+      exit 1
+    fi
+  else
+    echo "Notice: Not a git repository. Re-run setup_termux.sh to update."
+  fi
+  exit 0
+fi
+
+# ----------------------------------------------------
 # 1. Detect Python & Ensure Binaries Are Executable
 # ----------------------------------------------------
 if [ -d "$DIR/venv/bin" ]; then
@@ -149,16 +172,15 @@ for _ in range(25):
 fi
 
 # ----------------------------------------------------
-# 3. Pull Latest Updates from Repository
+# 3. Check for Updates (Non-blocking & Non-destructive)
 # ----------------------------------------------------
-if [ -d ".git" ]; then
-  echo "Checking for CardLens updates..."
-  if git -c http.connectTimeout=10 -c http.lowSpeedTime=10 fetch origin main; then
-    git reset --hard origin/main
-    chmod +x "$DIR/run.sh" "$DIR/setup_termux.sh" 2>/dev/null || true
-    echo "CardLens is updated to $(git rev-parse --short HEAD)."
-  else
-    echo "Notice: Could not connect to GitHub. Continuing in offline mode."
+if [ -d ".git" ] && [ "${CARDLENS_AUTO_UPDATE:-0}" = "1" ]; then
+  if git -c http.connectTimeout=3 -c http.lowSpeedTime=3 fetch origin main 2>/dev/null; then
+    LOCAL_REV=$(git rev-parse HEAD 2>/dev/null || true)
+    REMOTE_REV=$(git rev-parse origin/main 2>/dev/null || true)
+    if [ -n "$LOCAL_REV" ] && [ -n "$REMOTE_REV" ] && [ "$LOCAL_REV" != "$REMOTE_REV" ]; then
+      echo "Notice: A newer version of CardLens is available! Run 'cardlens update' to install."
+    fi
   fi
 fi
 

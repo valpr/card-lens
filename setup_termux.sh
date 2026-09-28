@@ -2,7 +2,7 @@
 # CardLens — Termux Setup Script
 # 
 # Paste this into Termux to set up the environment:
-#   pkg update -y && pkg install -y curl && curl -sL https://raw.githubusercontent.com/valpr/card-lens/main/setup_termux.sh | bash
+#   apt update && apt full-upgrade -y && apt install -y curl && curl -sL https://raw.githubusercontent.com/valpr/card-lens/main/setup_termux.sh | bash
 # Or clone and run:
 #   git clone https://github.com/valpr/card-lens.git cardlens && cd cardlens && bash setup_termux.sh
 
@@ -28,19 +28,19 @@ echo "=== CardLens: Termux Setup ==="
 echo ""
 
 # 1. Update package repos
-echo "[1/5] Updating packages..."
-pkg update -y && pkg upgrade -y
+echo "[1/5] Updating packages (full-upgrade to resolve library dependencies)..."
+apt update && apt full-upgrade -y
 
 # 2. Install system dependencies (build tools & libraries needed for Pillow)
 echo "[2/5] Installing system dependencies (python, git, build tools)..."
-pkg install -y python git build-essential libjpeg-turbo libpng
+apt install -y python git build-essential libjpeg-turbo libpng
 
 # 3. Clone repo or update if needed
 echo "[3/5] Setting up CardLens files..."
 if [ ! -f "main.py" ]; then
   if [ ! -d "$HOME/cardlens" ]; then
     echo "Cloning CardLens repository into $HOME/cardlens..."
-    git clone https://github.com/valpr/card-lens.git "$HOME/cardlens"
+    git clone --depth 1 https://github.com/valpr/card-lens.git "$HOME/cardlens"
   fi
   cd "$HOME/cardlens"
 fi

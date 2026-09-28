@@ -2,7 +2,11 @@ import base64
 import binascii
 import logging
 import os
+import sys
+import threading
+import time
 import urllib.parse
+import webbrowser
 from contextlib import asynccontextmanager
 from typing import Optional
 
@@ -253,8 +257,9 @@ routes = [
     Route("/ankiconnect", ankiconnect_proxy_endpoint, methods=["POST"]),
 ]
 
-# Mount static files for PWA frontend
-frontend_dir = os.path.join(os.path.dirname(__file__), "frontend")
+# Mount static files for PWA frontend (supports PyInstaller bundle extraction)
+base_dir = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
+frontend_dir = os.path.join(base_dir, "frontend")
 if os.path.isdir(frontend_dir):
     routes.append(Mount("/", StaticFiles(directory=frontend_dir, html=True), name="frontend"))
 
@@ -265,10 +270,35 @@ app = Starlette(
 )
 
 
-if __name__ == "__main__":
+def cli():
+    """Command-line entrypoint for CardLens."""
+    import argparse
     import uvicorn
 
-    port = int(os.environ.get("PORT", 5050))
-    host = os.environ.get("HOST", "0.0.0.0")
-    uvicorn.run("main:app", host=host, port=port, reload=False)
+    parser = argparse.ArgumentParser(description="CardLens Server")
+    parser.add_argument("--host", default=os.environ.get("HOST", "0.0.0.0"), help="Host to bind (default: 0.0.0.0)")
+    parser.add_argument("--port", type=int, default=int(os.environ.get("PORT", "5050")), help="Port to bind (default: 5050)")
+    parser.add_argument("--open-browser", action="store_true", help="Open browser on startup")
+    parser.add_argument("--no-browser", action="store_true", help="Do not open browser on startup")
+    args = parser.parse_args()
+
+    is_frozen = getattr(sys, "frozen", False)
+    should_open = (is_frozen or args.open_browser or os.environ.get("CARDLENS_OPEN_BROWSER") == "1") and not (
+        args.no_browser or os.environ.get("CARDLENS_NO_BROWSER") == "1"
+    )
+
+    if should_open:
+        def _open():
+            time.sleep(1.0)
+            webbrowser.open(f"http://localhost:{args.port}")
+
+        threading.Thread(target=_open, daemon=True).start()
+
+    # Pass app object directly to support PyInstaller frozen executables
+    uvicorn.run(app, host=args.host, port=args.port, reload=False)
+
+
+if __name__ == "__main__":
+    cli()
+
 

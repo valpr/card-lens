@@ -1,0 +1,16 @@
+.git
+.github
+__pycache__
+*.pyc
+*.pyo
+venv
+.venv
+tests
+.editorconfig
+.gitignore
+.gitattributes
+*.spec
+dist
+build
+*.sh
+.cardlens.pid

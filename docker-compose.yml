@@ -1,0 +1,12 @@
+services:
+  cardlens:
+    build: .
+    image: ghcr.io/valpr/card-lens:latest
+    container_name: cardlens
+    restart: unless-stopped
+    ports:
+      - "5050:5050"
+    environment:
+      - PORT=5050
+      - HOST=0.0.0.0
+      - CARDLENS_NO_BROWSER=1
