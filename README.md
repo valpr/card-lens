@@ -7,13 +7,13 @@
 
 ## 🌟 Why CardLens?
 
-When immersing in Japanese through games (Switch, Steam Deck, PC), manga, visual novels, or physical books, turning an unfamiliar sentence into an Anki flashcard is often tedious:
-1. Taking a screenshot or photo.
-2. Typing out kanji manually or dealing with clunky cloud OCR apps.
-3. Looking up definitions in a dictionary.
-4. Manually copy-pasting definitions and saving/attaching the image to Anki.
+When immersing in Japanese through games, manga, visual novels, or physical books, turning an unfamiliar sentence into an Anki flashcard shouldn't require expensive hardware or tedious manual work.
 
-**CardLens automates the entire visual mining loop without external servers or subscriptions:**
+- 🎮 **No capture card required.** Just snap a photo of your Switch, TV, Steam Deck, or handheld screen with your phone. No HDMI splitter, no streaming software, no cables.
+- 📚 **Works with any source.** Physical novels, manga volumes, game screenshots, visual novels, emulators, web pages — if you can see it or photograph it, CardLens can read it.
+- 🆓 **Free & self-hosted.** No accounts, no API keys, no subscriptions. The server runs on your own device and uses Google Lens for OCR — no paid cloud services required.
+
+**CardLens automates the entire visual mining loop:**
 - 📸 **Any Image Source:** Snap a photo of a screen or book, import gallery screenshots, drag-and-drop, or paste directly from your clipboard (`Ctrl+V`).
 - ✂️ **Touch-Friendly Cropper:** Crop directly to the dialogue box with pinch/drag controls, 90° rotation, and offline-vendored Cropper.js.
 - 🎨 **Image Pre-Processing Filters:** Real-time canvas filters (Contrast boost, Sharpen, Invert colors, B&W / Grayscale) with live preview to clarify low-contrast or stylized game text before OCR.
@@ -127,21 +127,41 @@ Pick whichever method you prefer:
 
 You can run CardLens on your computer to mine cards from PC games, visual novels, emulators, or manga readers:
 
-1. **Clone & Install Dependencies:**
+1. **Clone & Create Virtual Environment:**
    ```bash
    git clone https://github.com/valpr/card-lens.git
    cd card-lens
+   python -m venv venv
+   ```
+
+2. **Activate the Virtual Environment:**
+   ```bash
+   # Windows (PowerShell):
+   venv\Scripts\Activate.ps1
+
+   # Windows (cmd):
+   venv\Scripts\activate.bat
+
+   # macOS / Linux:
+   source venv/bin/activate
+   ```
+
+3. **Install Dependencies:**
+   ```bash
    pip install -r requirements.txt
    ```
 
-2. **Launch the Server:**
+4. **Launch the Server:**
    ```bash
    uvicorn main:app --host 127.0.0.1 --port 5050
    ```
 
-3. **Open the App:**
+5. **Open the App:**
    - Navigate to `http://localhost:5050` in your browser.
    - Use clipboard paste (`Ctrl+V`) to paste any screenshot immediately into the cropper!
+
+> [!TIP]
+> You'll need to activate the virtual environment (`venv`) each time you open a new terminal before running `uvicorn`. The `(venv)` prefix in your prompt confirms it's active.
 
 #### 💻 PC Mining Workflows: Choose What Works Best for You
 
