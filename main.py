@@ -35,14 +35,24 @@ async def lifespan(app: Starlette):
     app.state.http_client = http_client
 
     port = os.environ.get("PORT", "5050")
-    proto = "https" if os.environ.get("SSL_ACTIVE") == "1" else "http"
+    lan_ip = ""
+    try:
+        import socket
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        lan_ip = s.getsockname()[0]
+        s.close()
+    except Exception:
+        pass
+    lan_msg = f"  Network address: http://{lan_ip}:{port}\n" if lan_ip and not lan_ip.startswith("127.") else ""
+
     print(
         f"\n"
         f"================================================\n"
         f"  CardLens 🔍🎴 Server is running!\n"
-        f"  Protocol:        {proto}\n"
-        f"  Open in browser: {proto}://localhost:{port}\n"
-        f"  Local address:   {proto}://127.0.0.1:{port}\n"
+        f"  Open in browser: http://localhost:{port}\n"
+        f"  Local address:   http://127.0.0.1:{port}\n"
+        f"{lan_msg}"
         f"================================================\n",
         flush=True,
     )
@@ -341,47 +351,9 @@ def cli():
     parser = argparse.ArgumentParser(description="CardLens Server")
     parser.add_argument("--host", default=os.environ.get("HOST", "0.0.0.0"), help="Host to bind (default: 0.0.0.0)")
     parser.add_argument("--port", type=int, default=int(os.environ.get("PORT", "5050")), help="Port to bind (default: 5050)")
-    parser.add_argument("--ssl", action="store_true", help="Enable HTTPS using local cert.pem and key.pem")
-    parser.add_argument("--ssl-keyfile", default=os.environ.get("SSL_KEYFILE"), help="SSL private key file for HTTPS")
-    parser.add_argument("--ssl-certfile", default=os.environ.get("SSL_CERTFILE"), help="SSL certificate file for HTTPS")
     parser.add_argument("--open-browser", action="store_true", help="Open browser on startup")
     parser.add_argument("--no-browser", action="store_true", help="Do not open browser on startup")
     args = parser.parse_args()
-
-    if args.ssl:
-        base_dir = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
-        default_cert = os.path.join(base_dir, "cert.pem")
-        default_key = os.path.join(base_dir, "key.pem")
-
-        if not args.ssl_certfile:
-            args.ssl_certfile = default_cert if os.path.exists(default_cert) else "cert.pem"
-        if not args.ssl_keyfile:
-            args.ssl_keyfile = default_key if os.path.exists(default_key) else "key.pem"
-
-        if not os.path.exists(args.ssl_certfile) or not os.path.exists(args.ssl_keyfile):
-            import subprocess
-            logger.info("Generating SSL certificates for HTTPS...")
-            try:
-                subprocess.run(
-                    [
-                        "openssl", "req", "-x509", "-newkey", "rsa:2048",
-                        "-keyout", args.ssl_keyfile, "-out", args.ssl_certfile,
-                        "-days", "3650", "-nodes", "-subj", "/CN=cardlens"
-                    ],
-                    check=True,
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL
-                )
-                logger.info(f"SSL certificates generated: {args.ssl_certfile}, {args.ssl_keyfile}")
-            except Exception as e:
-                logger.warning(f"Could not auto-generate SSL certificates: {e}")
-
-    if args.ssl_certfile and args.ssl_keyfile and os.path.exists(args.ssl_certfile) and os.path.exists(args.ssl_keyfile):
-        os.environ["SSL_ACTIVE"] = "1"
-    elif args.ssl:
-        logger.warning("SSL certificates not found or generated. Falling back to HTTP mode.")
-        args.ssl_certfile = None
-        args.ssl_keyfile = None
 
     is_frozen = getattr(sys, "frozen", False)
     should_open = (is_frozen or args.open_browser or os.environ.get("CARDLENS_OPEN_BROWSER") == "1") and not (
@@ -391,8 +363,7 @@ def cli():
     if should_open:
         def _open():
             time.sleep(1.0)
-            proto = "https" if args.ssl_keyfile and args.ssl_certfile else "http"
-            webbrowser.open(f"{proto}://localhost:{args.port}")
+            webbrowser.open(f"http://localhost:{args.port}")
 
         threading.Thread(target=_open, daemon=True).start()
 
@@ -401,8 +372,6 @@ def cli():
         app,
         host=args.host,
         port=args.port,
-        ssl_keyfile=args.ssl_keyfile,
-        ssl_certfile=args.ssl_certfile,
         reload=False,
     )
 

@@ -39,29 +39,8 @@ if [ "$1" = "update" ]; then
       if [ -f "$DIR/venv/bin/pip" ]; then
         "$DIR/venv/bin/pip" install --extra-index-url https://termux-user-repository.github.io/pypi/ -r "$DIR/requirements.txt"
       fi
-      # Ensure SSL certs and cardlens-ssl command exist
-      if [ ! -f "$DIR/cert.pem" ] || [ ! -f "$DIR/key.pem" ]; then
-        if command -v openssl >/dev/null 2>&1; then
-          openssl req -x509 -newkey rsa:2048 -keyout "$DIR/key.pem" -out "$DIR/cert.pem" -days 3650 -nodes -subj "/CN=cardlens" 2>/dev/null || true
-        fi
-      fi
       PREFIX="${PREFIX:-/data/data/com.termux/files/usr}"
-      if [ -d "$PREFIX/bin" ] && [ ! -f "$PREFIX/bin/cardlens-ssl" ]; then
-        cat > "$PREFIX/bin/cardlens-ssl" << SCRIPT
-#!/data/data/com.termux/files/usr/bin/bash
-chmod +x "$DIR/run.sh" 2>/dev/null || true
-exec /data/data/com.termux/files/usr/bin/bash "$DIR/run.sh" --ssl "\$@"
-SCRIPT
-        chmod +x "$PREFIX/bin/cardlens-ssl"
-      fi
-      if [ -d "$HOME/.shortcuts" ] && [ ! -f "$HOME/.shortcuts/CardLens-SSL.sh" ]; then
-        cat > "$HOME/.shortcuts/CardLens-SSL.sh" << SCRIPT
-#!/data/data/com.termux/files/usr/bin/bash
-chmod +x "$DIR/run.sh" 2>/dev/null || true
-exec /data/data/com.termux/files/usr/bin/bash "$DIR/run.sh" --ssl
-SCRIPT
-        chmod +x "$HOME/.shortcuts/CardLens-SSL.sh"
-      fi
+      rm -f "$PREFIX/bin/cardlens-ssl" "$HOME/.shortcuts/CardLens-SSL.sh" "$DIR/cert.pem" "$DIR/key.pem" 2>/dev/null || true
       echo "CardLens updated successfully to $(git rev-parse --short HEAD)!"
     else
       echo "Error: Could not connect to GitHub to update."
@@ -211,54 +190,11 @@ if [ -d ".git" ] && [ "${CARDLENS_AUTO_UPDATE:-0}" = "1" ]; then
 fi
 
 # ----------------------------------------------------
-# 4. Check for SSL Configuration
-# ----------------------------------------------------
-USE_SSL=0
-FILTERED_ARGS=()
-for arg in "$@"; do
-  case "$arg" in
-    --ssl|--https)
-      USE_SSL=1
-      ;;
-    *)
-      FILTERED_ARGS+=("$arg")
-      ;;
-  esac
-done
-
-if [ "${CARDLENS_SSL:-0}" = "1" ]; then
-  USE_SSL=1
-fi
-
-SSL_ARGS=()
-PROTO="http"
-
-if [ "$USE_SSL" = "1" ]; then
-  SSL_CERT="${SSL_CERTFILE:-$DIR/cert.pem}"
-  SSL_KEY="${SSL_KEYFILE:-$DIR/key.pem}"
-  if [ ! -f "$SSL_CERT" ] || [ ! -f "$SSL_KEY" ]; then
-    if command -v openssl >/dev/null 2>&1; then
-      echo "Notice: SSL certificates not found. Generating $DIR/cert.pem and $DIR/key.pem..."
-      openssl req -x509 -newkey rsa:2048 -keyout "$DIR/key.pem" -out "$DIR/cert.pem" -days 3650 -nodes -subj "/CN=cardlens" 2>/dev/null || true
-    else
-      echo "Notice: openssl command not found. Cannot generate SSL certificates."
-    fi
-  fi
-  if [ -f "$SSL_CERT" ] && [ -f "$SSL_KEY" ]; then
-    SSL_ARGS=(--ssl-certfile "$SSL_CERT" --ssl-keyfile "$SSL_KEY")
-    PROTO="https"
-    export SSL_ACTIVE=1
-  else
-    echo "Warning: Could not create or find SSL certs, falling back to HTTP mode."
-  fi
-fi
-
-# ----------------------------------------------------
-# 5. Save PID & Launch New Instance
+# 4. Save PID & Launch Server
 # ----------------------------------------------------
 echo "$$" > "$PID_FILE"
 
-# Detect Wi-Fi LAN IP for remote devices (Android wlan, hotspot, iOS/macOS en0, Linux)
+# Detect Wi-Fi LAN IP for network devices (Android wlan, hotspot, iOS/macOS en0, Linux)
 LAN_IP=""
 PY_CMD=""
 if [ -n "$PYTHON_BIN" ] && [ -x "$PYTHON_BIN" ]; then
@@ -304,17 +240,16 @@ fi
 echo ""
 echo "================================================"
 echo "  CardLens Server is active!"
-echo "  Protocol:        ${PROTO}"
-echo "  Open in browser: ${PROTO}://localhost:${PORT}"
-echo "  Local address:   ${PROTO}://127.0.0.1:${PORT}"
+echo "  Open in browser: http://localhost:${PORT}"
+echo "  Local address:   http://127.0.0.1:${PORT}"
 if [ -n "$LAN_IP" ]; then
-  echo "  Remote device:   ${PROTO}://${LAN_IP}:${PORT}"
+  echo "  Network address: http://${LAN_IP}:${PORT}"
 fi
 echo "================================================"
 echo ""
 
 if [ -n "$PYTHON_BIN" ]; then
-  exec "$PYTHON_BIN" -m uvicorn main:app --host "$HOST" --port "$PORT" "${SSL_ARGS[@]}" "${FILTERED_ARGS[@]}"
+  exec "$PYTHON_BIN" -m uvicorn main:app --host "$HOST" --port "$PORT" "$@"
 else
-  exec uvicorn main:app --host "$HOST" --port "$PORT" "${SSL_ARGS[@]}" "${FILTERED_ARGS[@]}"
+  exec uvicorn main:app --host "$HOST" --port "$PORT" "$@"
 fi

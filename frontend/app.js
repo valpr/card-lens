@@ -929,8 +929,9 @@ function initEventListeners() {
 // Native In-App Camera Viewfinder
 // ==========================================
 async function openNativeCamera() {
-  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-    showToast('Camera streaming requires HTTPS or localhost. Opening file chooser fallback.', 'warning');
+  // If not running in a secure context (e.g. phone accessing server over plain LAN HTTP),
+  // directly trigger device native camera capture without attempting WebRTC stream
+  if (!window.isSecureContext || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
     if (elements.cameraInput) elements.cameraInput.click();
     return;
   }
@@ -1041,7 +1042,7 @@ async function initCameraStream() {
     } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
       showToast('No camera found on this device. Opening file picker fallback.', 'warning');
     } else if (err.name === 'SecurityError') {
-      showToast('Camera access requires HTTPS or localhost. Opening file picker fallback.', 'warning');
+      showToast('In-app camera requires localhost. Opening device camera...', 'info');
     } else {
       showToast(`Camera error (${err.name || 'unsupported'}). Opening file picker fallback.`, 'warning');
     }
