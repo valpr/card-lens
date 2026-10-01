@@ -1605,3 +1605,37 @@ body.modal-open {
   }
 }
 
+/* Remote Client Auto-Detection Badge */
+.remote-client-badge {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 6px;
+  padding: 6px 10px;
+  background-color: rgba(56, 189, 248, 0.08);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  border-radius: var(--radius-sm);
+  font-size: 0.78rem;
+  color: var(--accent-cyan);
+}
+
+.remote-badge-icon {
+  font-size: 0.95rem;
+  flex-shrink: 0;
+}
+
+#remoteClientText {
+  flex: 1;
+  line-height: 1.25;
+}
+
+.btn-tiny {
+  padding: 2px 7px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+

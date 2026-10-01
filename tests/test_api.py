@@ -144,6 +144,23 @@ class TestCardLensAPI(unittest.TestCase):
         self.assertEqual(resp.status_code, 502)
         self.assertIn("Cannot connect to AnkiConnect", resp.json()["error"])
 
+    def test_client_info_endpoint(self):
+        """Client info endpoint returns client IP and suggested URL"""
+        resp = self.client.get("/api/client-info")
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertIn("client_ip", data)
+        self.assertIn("is_remote", data)
+        self.assertIn("suggested_anki_url", data)
+        self.assertFalse(data["is_remote"])
+        self.assertEqual(data["suggested_anki_url"], "http://localhost:8765")
+
+    def test_client_info_alias_route(self):
+        """Client info is accessible on /client-info alias route as well"""
+        resp = self.client.get("/client-info")
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("client_ip", resp.json())
+
 
 if __name__ == "__main__":
     unittest.main()

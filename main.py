@@ -175,10 +175,28 @@ def is_safe_local_url(url: str) -> bool:
         return False
 
 
+async def client_info_endpoint(request: Request) -> JSONResponse:
+    """
+    Return caller's client IP, remote connection status, and suggested AnkiConnect target URL.
+    Used by the frontend to detect if running on a remote/customer device (e.g. phone accessing Termux server)
+    and automatically configure AnkiConnect to target this phone.
+    """
+    client_ip = request.client.host if request.client else "127.0.0.1"
+    is_local = client_ip in ("127.0.0.1", "localhost", "::1", "testclient")
+    suggested_anki_url = f"http://{client_ip}:8765" if not is_local else "http://localhost:8765"
+    return JSONResponse({
+        "client_ip": client_ip,
+        "is_remote": not is_local,
+        "suggested_anki_url": suggested_anki_url,
+    })
+
+
 async def ankiconnect_proxy_endpoint(request: Request) -> JSONResponse:
     """
     Transparent proxy endpoint for AnkiConnect requests.
     Eliminates CORS origin blocking on PC desktop browsers (where AnkiConnect rejects localhost:5050).
+    When accessed by a remote client (e.g. customer phone accessing Termux server), automatically
+    falls back to routing requests to AnkiConnect on the client's device if localhost is unreachable on server.
     """
     try:
         data = await request.json()
@@ -188,9 +206,24 @@ async def ankiconnect_proxy_endpoint(request: Request) -> JSONResponse:
     if not isinstance(data, dict):
         return JSONResponse({"error": "JSON payload must be an object."}, status_code=400)
 
+    client_host = request.client.host if request.client else "127.0.0.1"
+    is_remote_client = client_host not in ("127.0.0.1", "localhost", "::1", "testclient") and is_safe_local_url(f"http://{client_host}:8765")
+
     # Determine destination URL (from header or payload)
     target_url = request.headers.get("X-Anki-Url") or data.get("ankiUrl") or "http://127.0.0.1:8765"
-    if not isinstance(target_url, str) or not is_safe_local_url(target_url):
+    if not isinstance(target_url, str):
+        return JSONResponse({"error": "Target URL must be a string."}, status_code=400)
+
+    # Support special @client or client host alias
+    try:
+        parsed_target = urllib.parse.urlparse(target_url)
+        if parsed_target.hostname in ("@client", "client") and is_remote_client:
+            port = parsed_target.port or 8765
+            target_url = f"http://{client_host}:{port}"
+    except Exception:
+        pass
+
+    if not is_safe_local_url(target_url):
         return JSONResponse({"error": f"Invalid or disallowed target URL: {target_url}"}, status_code=400)
 
     # Clean payload for AnkiConnect
@@ -203,14 +236,40 @@ async def ankiconnect_proxy_endpoint(request: Request) -> JSONResponse:
         own_client = True
 
     try:
-        resp = await client.post(target_url, json=payload)
-        resp_data = resp.json()
-        return JSONResponse(resp_data, status_code=resp.status_code)
-    except httpx.ConnectError:
-        return JSONResponse(
-            {"error": f"Cannot connect to AnkiConnect at {target_url}. Connection refused."},
-            status_code=502,
-        )
+        try:
+            resp = await client.post(target_url, json=payload)
+            resp_data = resp.json()
+            return JSONResponse(resp_data, status_code=resp.status_code)
+        except httpx.ConnectError:
+            # If target was localhost/127.0.0.1 on the server and connection was refused,
+            # but the caller is a remote LAN device (e.g. customer phone accessing Termux server):
+            # Automatically fall back to trying AnkiConnect on the caller's phone!
+            parsed = urllib.parse.urlparse(target_url)
+            if is_remote_client and (parsed.hostname or "").lower() in ("localhost", "127.0.0.1", "::1", "0.0.0.0"):
+                port = parsed.port or 8765
+                fallback_url = f"http://{client_host}:{port}"
+                logger.info(
+                    f"AnkiConnect unreachable on server localhost; auto-routing to client device at {fallback_url}"
+                )
+                try:
+                    resp = await client.post(fallback_url, json=payload)
+                    resp_data = resp.json()
+                    return JSONResponse(resp_data, status_code=resp.status_code)
+                except httpx.ConnectError:
+                    return JSONResponse(
+                        {
+                            "error": (
+                                f"Cannot connect to AnkiConnect on server ({target_url}) or device ({fallback_url}). "
+                                "If on phone: ensure AnkiConnect Android is started. "
+                                "If on PC: ensure 'webBindAddress': '0.0.0.0' is set in AnkiConnect add-on config and Anki is open."
+                            )
+                        },
+                        status_code=502,
+                    )
+            return JSONResponse(
+                {"error": f"Cannot connect to AnkiConnect at {target_url}. Connection refused."},
+                status_code=502,
+            )
     except httpx.TimeoutException:
         return JSONResponse(
             {"error": f"Connection to AnkiConnect at {target_url} timed out."},
@@ -253,6 +312,8 @@ middleware = [
 routes = [
     Route("/health", health_check, methods=["GET"]),
     Route("/ocr", ocr_endpoint, methods=["POST"]),
+    Route("/api/client-info", client_info_endpoint, methods=["GET"]),
+    Route("/client-info", client_info_endpoint, methods=["GET"]),
     Route("/api/ankiconnect", ankiconnect_proxy_endpoint, methods=["POST"]),
     Route("/ankiconnect", ankiconnect_proxy_endpoint, methods=["POST"]),
 ]

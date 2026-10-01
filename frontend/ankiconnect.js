@@ -34,11 +34,36 @@ const AnkiConnect = {
     localStorage.setItem('cardlens_workflow_mode', mode || 'ankiconnect');
   },
 
+  // Cache for /api/client-info to avoid duplicate network calls
+  cachedClientInfo: null,
+
+  /**
+   * Fetch client connection info from the server (/api/client-info)
+   * Detects if the current device is remote (e.g. customer phone accessing Termux server)
+   * and provides the phone's IP for AnkiConnect auto-configuration.
+   */
+  async fetchClientInfo() {
+    if (this.cachedClientInfo) return this.cachedClientInfo;
+    try {
+      const resp = await fetch('/api/client-info');
+      if (resp.ok) {
+        this.cachedClientInfo = await resp.json();
+        return this.cachedClientInfo;
+      }
+    } catch (_) {}
+    return null;
+  },
+
   // Config defaults stored in localStorage
   getConfig() {
     const storedDeck = localStorage.getItem('anki_deck');
+    const storedUrl = localStorage.getItem('anki_url');
+    let defaultUrl = 'http://localhost:8765';
+    if (!storedUrl && this.cachedClientInfo && this.cachedClientInfo.suggested_anki_url) {
+      defaultUrl = this.cachedClientInfo.suggested_anki_url;
+    }
     return {
-      url: localStorage.getItem('anki_url') || 'http://localhost:8765',
+      url: storedUrl || defaultUrl,
       deck: storedDeck !== null ? storedDeck : 'Mining',
       pictureField: localStorage.getItem('anki_field') || 'Picture',
       autoAttach: localStorage.getItem('anki_auto_attach') === 'true',
@@ -67,6 +92,7 @@ const AnkiConnect = {
   async invoke(action, params = {}, version = 6) {
     const config = this.getConfig();
     let response;
+    let lastProxyError = null;
     const proxyUrl = this.getProxyUrl();
 
     // 1. Try local server proxy first if running in browser (eliminates desktop CORS restriction)
@@ -86,6 +112,13 @@ const AnkiConnect = {
             throw new Error(`AnkiConnect error: ${data.error}`);
           }
           return data.result;
+        } else {
+          try {
+            const errData = await response.json();
+            if (errData && errData.error) {
+              lastProxyError = errData.error;
+            }
+          } catch (_) {}
         }
       } catch (proxyErr) {
         if (proxyErr.message && proxyErr.message.startsWith('AnkiConnect error:')) {
@@ -105,11 +138,11 @@ const AnkiConnect = {
         body: JSON.stringify({ action, version, params })
       });
     } catch (err) {
-      throw new Error(this.getConnectionErrorMessage(config.url));
+      throw new Error(lastProxyError || this.getConnectionErrorMessage(config.url));
     }
 
     if (!response.ok) {
-      throw new Error(`AnkiConnect HTTP error: ${response.status} ${response.statusText}`);
+      throw new Error(lastProxyError || `AnkiConnect HTTP error: ${response.status} ${response.statusText}`);
     }
 
     const data = await response.json();

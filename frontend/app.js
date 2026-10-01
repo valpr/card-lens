@@ -87,6 +87,10 @@ const elements = {
   btnSettingsCopyAddonCode: document.getElementById('btnSettingsCopyAddonCode'),
   inputAnkiUrl: document.getElementById('inputAnkiUrl'),
   ankiUrlHint: document.getElementById('ankiUrlHint'),
+  remoteClientHint: document.getElementById('remoteClientHint'),
+  remoteClientText: document.getElementById('remoteClientText'),
+  btnUseClientIp: document.getElementById('btnUseClientIp'),
+  wizardMobileDesc: document.getElementById('wizardMobileDesc'),
   inputAnkiDeck: document.getElementById('inputAnkiDeck'),
   inputAnkiField: document.getElementById('inputAnkiField'),
   inputFormatTemplate: document.getElementById('inputFormatTemplate'),
@@ -246,6 +250,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initKeyboardShortcuts();
   loadSavedSettings();
   checkFirstTimeSetup();
+  initRemoteClientInfo();
 });
 
 function initServiceWorker() {
@@ -733,6 +738,16 @@ function initEventListeners() {
   }
   if (elements.btnSettingsCopyAddonCode) {
     elements.btnSettingsCopyAddonCode.addEventListener('click', copyAddonCode);
+  }
+  if (elements.btnUseClientIp) {
+    elements.btnUseClientIp.addEventListener('click', () => {
+      const info = AnkiConnect.cachedClientInfo;
+      if (info && info.suggested_anki_url) {
+        elements.inputAnkiUrl.value = info.suggested_anki_url;
+        AnkiConnect.saveConfig({ url: info.suggested_anki_url });
+        showToast(`AnkiConnect URL set to ${info.suggested_anki_url}`, 'info');
+      }
+    });
   }
 
   // Settings Quick Tools
@@ -1884,11 +1899,53 @@ function openSettings() {
       ? 'Standard port for AnkiConnect Android'
       : 'Standard port for Anki Desktop (AnkiConnect add-on) or AnkiConnect Android';
   }
+  const info = AnkiConnect.cachedClientInfo;
+  if (info && info.is_remote && elements.remoteClientHint && elements.remoteClientText) {
+    const deviceName = isMobile ? 'phone' : 'PC';
+    elements.remoteClientText.textContent = `Remote ${deviceName} detected (${info.client_ip})`;
+    elements.remoteClientHint.classList.remove('hidden');
+    if (!isMobile && elements.ankiUrlHint) {
+      elements.ankiUrlHint.textContent = 'Remote PC: Ensure "webBindAddress": "0.0.0.0" is set in AnkiConnect add-on config.';
+    }
+  }
   elements.settingsModal.classList.remove('hidden');
   document.body.classList.add('modal-open');
   elements.settingsModal.scrollTop = 0;
   const content = elements.settingsModal.querySelector('.modal-content');
   if (content) content.scrollTop = 0;
+}
+
+async function initRemoteClientInfo() {
+  try {
+    const info = await AnkiConnect.fetchClientInfo();
+    if (!info) return;
+
+    if (info.is_remote && info.client_ip) {
+      console.log(`[CardLens] Remote client detected: ${info.client_ip}`);
+      const isMobile = AnkiConnect.isMobileDevice();
+      const deviceName = isMobile ? 'phone' : 'PC';
+
+      // If user hasn't explicitly set a custom anki_url, automatically set it to their device's IP
+      const savedUrl = localStorage.getItem('anki_url');
+      if (!savedUrl && info.suggested_anki_url) {
+        AnkiConnect.saveConfig({ url: info.suggested_anki_url });
+        if (elements.inputAnkiUrl) {
+          elements.inputAnkiUrl.value = info.suggested_anki_url;
+        }
+      }
+
+      // Update Remote Client Hint in Settings
+      if (elements.remoteClientHint && elements.remoteClientText) {
+        elements.remoteClientText.textContent = `Remote ${deviceName} detected (${info.client_ip})`;
+        elements.remoteClientHint.classList.remove('hidden');
+      }
+
+      // Update mobile wizard description
+      if (elements.wizardMobileDesc) {
+        elements.wizardMobileDesc.innerHTML = `Connect to AnkiDroid on this phone (<code>${info.suggested_anki_url}</code>):`;
+      }
+    }
+  } catch (_) {}
 }
 
 function closeSettings() {

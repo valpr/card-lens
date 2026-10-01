@@ -258,6 +258,11 @@
               <button type="button" id="btnFetchAnkiData" class="btn btn-secondary btn-small" title="Load decks & fields from Anki">Load</button>
             </div>
             <small class="form-hint" id="ankiUrlHint">Standard port for Anki Desktop (AnkiConnect add-on) or AnkiConnect Android</small>
+            <div id="remoteClientHint" class="remote-client-badge hidden">
+              <span class="remote-badge-icon">📱</span>
+              <span id="remoteClientText">Accessing from remote device</span>
+              <button type="button" id="btnUseClientIp" class="btn btn-tiny btn-secondary">Use this device</button>
+            </div>
           </div>
 
           <div class="form-group">
@@ -482,7 +487,7 @@
               <span class="option-badge">Recommended</span>
               <h3>🔌 Option 1: AnkiConnect Android</h3>
             </div>
-            <p class="option-desc">Connect directly to AnkiDroid / AnkiConnect Android (<code>localhost:8765</code>):</p>
+            <p class="option-desc" id="wizardMobileDesc">Connect directly to AnkiDroid / AnkiConnect Android (<code>localhost:8765</code>):</p>
 
             <div class="wizard-actions">
               <button type="button" id="btnWizardAutoDetectMobile" class="btn btn-primary btn-small" style="width: 100%; margin-bottom: 12px; font-weight: 600;">
