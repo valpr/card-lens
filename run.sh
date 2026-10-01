@@ -1,4 +1,4 @@
-#!/data/data/com.termux/files/usr/bin/bash
+#!/usr/bin/env bash
 # CardLens — Server Launcher & Auto-Updater
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -38,6 +38,29 @@ if [ "$1" = "update" ]; then
       chmod +x "$DIR/run.sh" "$DIR/setup_termux.sh" 2>/dev/null || true
       if [ -f "$DIR/venv/bin/pip" ]; then
         "$DIR/venv/bin/pip" install --extra-index-url https://termux-user-repository.github.io/pypi/ -r "$DIR/requirements.txt"
+      fi
+      # Ensure SSL certs and cardlens-ssl command exist
+      if [ ! -f "$DIR/cert.pem" ] || [ ! -f "$DIR/key.pem" ]; then
+        if command -v openssl >/dev/null 2>&1; then
+          openssl req -x509 -newkey rsa:2048 -keyout "$DIR/key.pem" -out "$DIR/cert.pem" -days 3650 -nodes -subj "/CN=cardlens" 2>/dev/null || true
+        fi
+      fi
+      PREFIX="${PREFIX:-/data/data/com.termux/files/usr}"
+      if [ -d "$PREFIX/bin" ] && [ ! -f "$PREFIX/bin/cardlens-ssl" ]; then
+        cat > "$PREFIX/bin/cardlens-ssl" << SCRIPT
+#!/data/data/com.termux/files/usr/bin/bash
+chmod +x "$DIR/run.sh" 2>/dev/null || true
+exec /data/data/com.termux/files/usr/bin/bash "$DIR/run.sh" --ssl "\$@"
+SCRIPT
+        chmod +x "$PREFIX/bin/cardlens-ssl"
+      fi
+      if [ -d "$HOME/.shortcuts" ] && [ ! -f "$HOME/.shortcuts/CardLens-SSL.sh" ]; then
+        cat > "$HOME/.shortcuts/CardLens-SSL.sh" << SCRIPT
+#!/data/data/com.termux/files/usr/bin/bash
+chmod +x "$DIR/run.sh" 2>/dev/null || true
+exec /data/data/com.termux/files/usr/bin/bash "$DIR/run.sh" --ssl
+SCRIPT
+        chmod +x "$HOME/.shortcuts/CardLens-SSL.sh"
       fi
       echo "CardLens updated successfully to $(git rev-parse --short HEAD)!"
     else
@@ -88,7 +111,10 @@ if [ -f "$PID_FILE" ]; then
 fi
 
 # B) Force kill any lingering processes on port or uvicorn
-fuser -k -9 "${PORT}/tcp" 2>/dev/null || true
+fuser -k -9 "${PORT}/tcp" >/dev/null 2>&1 || true
+if command -v lsof >/dev/null 2>&1; then
+  lsof -ti "tcp:${PORT}" 2>/dev/null | xargs kill -9 2>/dev/null || true
+fi
 if command -v pkill >/dev/null 2>&1; then
   pkill -9 -f "main:app" 2>/dev/null || true
   pkill -9 -f "uvicorn" 2>/dev/null || true
@@ -185,20 +211,110 @@ if [ -d ".git" ] && [ "${CARDLENS_AUTO_UPDATE:-0}" = "1" ]; then
 fi
 
 # ----------------------------------------------------
-# 4. Save PID & Launch New Instance
+# 4. Check for SSL Configuration
+# ----------------------------------------------------
+USE_SSL=0
+FILTERED_ARGS=()
+for arg in "$@"; do
+  case "$arg" in
+    --ssl|--https)
+      USE_SSL=1
+      ;;
+    *)
+      FILTERED_ARGS+=("$arg")
+      ;;
+  esac
+done
+
+if [ "${CARDLENS_SSL:-0}" = "1" ]; then
+  USE_SSL=1
+fi
+
+SSL_ARGS=()
+PROTO="http"
+
+if [ "$USE_SSL" = "1" ]; then
+  SSL_CERT="${SSL_CERTFILE:-$DIR/cert.pem}"
+  SSL_KEY="${SSL_KEYFILE:-$DIR/key.pem}"
+  if [ ! -f "$SSL_CERT" ] || [ ! -f "$SSL_KEY" ]; then
+    if command -v openssl >/dev/null 2>&1; then
+      echo "Notice: SSL certificates not found. Generating $DIR/cert.pem and $DIR/key.pem..."
+      openssl req -x509 -newkey rsa:2048 -keyout "$DIR/key.pem" -out "$DIR/cert.pem" -days 3650 -nodes -subj "/CN=cardlens" 2>/dev/null || true
+    else
+      echo "Notice: openssl command not found. Cannot generate SSL certificates."
+    fi
+  fi
+  if [ -f "$SSL_CERT" ] && [ -f "$SSL_KEY" ]; then
+    SSL_ARGS=(--ssl-certfile "$SSL_CERT" --ssl-keyfile "$SSL_KEY")
+    PROTO="https"
+    export SSL_ACTIVE=1
+  else
+    echo "Warning: Could not create or find SSL certs, falling back to HTTP mode."
+  fi
+fi
+
+# ----------------------------------------------------
+# 5. Save PID & Launch New Instance
 # ----------------------------------------------------
 echo "$$" > "$PID_FILE"
+
+# Detect Wi-Fi LAN IP for remote devices (Android wlan, hotspot, iOS/macOS en0, Linux)
+LAN_IP=""
+PY_CMD=""
+if [ -n "$PYTHON_BIN" ] && [ -x "$PYTHON_BIN" ]; then
+  PY_CMD="$PYTHON_BIN"
+elif command -v python3 >/dev/null 2>&1; then
+  PY_CMD="python3"
+elif command -v python >/dev/null 2>&1; then
+  PY_CMD="python"
+fi
+
+if [ -n "$PY_CMD" ]; then
+  LAN_IP=$("$PY_CMD" -c "
+import socket
+def get_ip():
+    for target in ('8.8.8.8', '192.168.1.1', '192.168.0.1', '10.0.0.1', '172.16.0.1'):
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            s.connect((target, 80))
+            ip = s.getsockname()[0]
+            s.close()
+            if ip and not ip.startswith('127.'):
+                return ip
+        except Exception:
+            pass
+    try:
+        ip = socket.gethostbyname(socket.gethostname())
+        if ip and not ip.startswith('127.'):
+            return ip
+    except Exception:
+        pass
+    return ''
+print(get_ip())
+" 2>/dev/null || true)
+fi
+
+if [ -z "$LAN_IP" ]; then
+  LAN_IP=$(ip -4 addr show 2>/dev/null | grep -o 'inet [0-9\.]*' | grep -v '127.0.0.1' | cut -d' ' -f2 | head -n1 || true)
+fi
+if [ -z "$LAN_IP" ]; then
+  LAN_IP=$(ifconfig 2>/dev/null | grep -o 'inet [0-9\.]*' | grep -v '127.0.0.1' | cut -d' ' -f2 | head -n1 || true)
+fi
 
 echo ""
 echo "================================================"
 echo "  CardLens Server is active!"
-echo "  Open in browser: http://localhost:${PORT}"
-echo "  Local address:   http://127.0.0.1:${PORT}"
+echo "  Protocol:        ${PROTO}"
+echo "  Open in browser: ${PROTO}://localhost:${PORT}"
+echo "  Local address:   ${PROTO}://127.0.0.1:${PORT}"
+if [ -n "$LAN_IP" ]; then
+  echo "  Remote device:   ${PROTO}://${LAN_IP}:${PORT}"
+fi
 echo "================================================"
 echo ""
 
 if [ -n "$PYTHON_BIN" ]; then
-  exec "$PYTHON_BIN" -m uvicorn main:app --host "$HOST" --port "$PORT" "$@"
+  exec "$PYTHON_BIN" -m uvicorn main:app --host "$HOST" --port "$PORT" "${SSL_ARGS[@]}" "${FILTERED_ARGS[@]}"
 else
-  exec uvicorn main:app --host "$HOST" --port "$PORT" "$@"
+  exec uvicorn main:app --host "$HOST" --port "$PORT" "${SSL_ARGS[@]}" "${FILTERED_ARGS[@]}"
 fi

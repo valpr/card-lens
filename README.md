@@ -99,17 +99,22 @@ Android will kill background services by default unless you grant these:
 
 #### Step 4: Launch CardLens
 Pick whichever method you prefer:
-- **One-Tap Home Screen Shortcut (Termux:Widget):** Long-press an empty space on your home screen → **Widgets** → **Termux:Widget** → drag the **Termux shortcut (1×1)** onto your screen and tap `CardLens.sh`. Tap it anytime to launch!
+- **One-Tap Home Screen Shortcut (Termux:Widget):** Long-press an empty space on your home screen → **Widgets** → **Termux:Widget** → drag the **Termux shortcut (1×1)** onto your screen and tap:
+  - `CardLens.sh` for same-phone mining (`http://localhost:5050`)
+  - `CardLens-SSL.sh` for cross-device access from a separate camera phone (`https://<your-ip>:5050`)
 - **Terminal:** Open Termux and simply run:
   ```bash
+  # For same-phone mining:
   cardlens
+
+  # Or for cross-device access with in-app camera support:
+  cardlens-ssl
   ```
 
 #### Step 5: Open CardLens & Install PWA
 1. Open Firefox for Android and navigate to:
-   ```text
-   http://localhost:5050
-   ```
+   - On the same phone: `http://localhost:5050`
+   - From another phone on the same Wi-Fi: `https://<termux-phone-ip>:5050` *(accept the one-time self-signed risk warning in Firefox)*
 2. Tap the Firefox menu (`⋮`) → **"Add to Home screen"** (or **"Install"**).
 3. Tap the **CardLens** icon on your home screen to use it in full-screen standalone mode!
 4. The first-time wizard will guide you to auto-configure with your Yomitan settings or Anki deck.

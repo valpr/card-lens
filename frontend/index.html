@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="theme-color" content="#18181b">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -15,7 +15,7 @@
   <link rel="apple-touch-icon" href="/icons/icon-192.png">
   
   <link rel="stylesheet" href="/vendor/cropperjs/cropper.min.css">
-  <link rel="stylesheet" href="/styles.css?v=0.4.2">
+  <link rel="stylesheet" href="/styles.css?v=0.4.5">
 </head>
 <body>
   <div class="app-container">
@@ -42,10 +42,10 @@
           <p class="subtitle">Take a photo, pick any screenshot or manga image, or paste from clipboard</p>
 
           <div class="button-group">
-            <label class="btn btn-primary btn-large">
+            <button type="button" id="btnCamera" class="btn btn-primary btn-large">
               <span>📸 Camera</span>
-              <input type="file" id="cameraInput" accept="image/*" capture="environment" class="visually-hidden">
-            </label>
+            </button>
+            <input type="file" id="cameraInput" accept="image/*" capture="environment" class="visually-hidden">
 
             <label class="btn btn-secondary btn-large">
               <span>🖼️ Gallery / Screenshot</span>
@@ -576,12 +576,63 @@
       </div>
     </div>
 
+    <!-- Native-like In-App Camera Viewfinder -->
+    <div id="cameraModal" class="camera-modal hidden" role="dialog" aria-modal="true" aria-label="Camera Viewfinder">
+      <!-- Camera Viewport / Stream -->
+      <div class="camera-viewport" id="cameraViewport">
+        <video id="cameraVideo" class="camera-video" autoplay playsinline webkit-playsinline muted></video>
+        <div id="cameraFocusRing" class="camera-focus-ring"></div>
+        <div id="cameraFlashOverlay" class="camera-flash-overlay"></div>
+        <!-- Subtle Framing Grid -->
+        <div class="camera-grid">
+          <div class="grid-line horizontal top"></div>
+          <div class="grid-line horizontal bottom"></div>
+          <div class="grid-line vertical left"></div>
+          <div class="grid-line vertical right"></div>
+        </div>
+      </div>
+
+      <!-- Top Controls Bar -->
+      <div class="camera-top-bar">
+        <button type="button" id="btnCloseCamera" class="camera-icon-btn" title="Close Camera" aria-label="Close Camera">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+
+        <div class="camera-top-actions">
+          <button type="button" id="btnToggleTorch" class="camera-icon-btn hidden" title="Toggle Flashlight" aria-label="Toggle Flashlight">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Bottom Controls Bar -->
+      <div class="camera-bottom-bar">
+        <div class="camera-bottom-side left">
+          <button type="button" id="btnCameraFallback" class="camera-text-btn" title="Choose from Files or Gallery">
+            Files
+          </button>
+        </div>
+
+        <div class="camera-shutter-container">
+          <button type="button" id="btnShutter" class="camera-shutter-btn" aria-label="Take Photo" title="Take Photo">
+            <span class="shutter-inner"></span>
+          </button>
+        </div>
+
+        <div class="camera-bottom-side right">
+          <button type="button" id="btnFlipCamera" class="camera-icon-btn hidden" title="Switch Camera" aria-label="Switch Camera">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0-4.418-3.582-8-8-8s-8 3.582-8 8c0 1.954.702 3.744 1.871 5.129L4 18h5v-5l-1.805 1.805C6.347 13.684 6 12.391 6 11c0-3.314 2.686-6 6-6s6 2.686 6 6c0 1.391-.347 2.684-1.195 3.805L15 13v5h5l-1.871-2.871C19.298 13.744 20 11.954 20 10z"></path></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- Notification Toast Container -->
     <div id="toastContainer" class="toast-container" aria-live="polite"></div>
   </div>
 
   <script src="/vendor/cropperjs/cropper.min.js"></script>
-  <script src="/ankiconnect.js?v=0.4.4"></script>
-  <script src="/app.js?v=0.4.4"></script>
+  <script src="/ankiconnect.js?v=0.4.5"></script>
+  <script src="/app.js?v=0.4.5"></script>
 </body>
 </html>

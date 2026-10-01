@@ -69,3 +69,8 @@ Thumbs.db
 *.log
 temp/
 tmp/
+
+# SSL Certificates & PID
+*.pem
+.cardlens.pid
+

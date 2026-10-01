@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cardlens-v10';
+const CACHE_NAME = 'cardlens-v11';
 const APP_SHELL = [
   '/',
   '/index.html',
@@ -25,11 +25,7 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) => {
       return Promise.all(
-        keys.map((key) => {
-          if (key !== CACHE_NAME) {
-            return caches.delete(key);
-          }
-        })
+        keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))
       );
     }).then(() => self.clients.claim())
   );
@@ -38,8 +34,15 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  // Always bypass cache for POST requests or OCR/Anki API endpoints
-  if (event.request.method !== 'GET' || url.pathname === '/ocr' || url.port === '8765') {
+  // Always bypass cache for non-GET requests or backend API endpoints
+  if (
+    event.request.method !== 'GET' ||
+    url.pathname === '/ocr' ||
+    url.pathname.startsWith('/api/') ||
+    url.pathname === '/client-info' ||
+    url.pathname === '/health' ||
+    url.port === '8765'
+  ) {
     return;
   }
 
@@ -56,7 +59,7 @@ self.addEventListener('fetch', (event) => {
         return networkResponse;
       })
       .catch(() => {
-        return caches.match(event.request).then((cachedResponse) => {
+        return caches.match(event.request, { ignoreSearch: true }).then((cachedResponse) => {
           if (cachedResponse) {
             return cachedResponse;
           }

@@ -23,6 +23,13 @@ let isDrawingTrace = false;
 let traceStartPoint = null; // { x, y } where drag started
 let traceEndPoint = null; // { x, y } current drag position
 
+// Native In-App Camera Viewfinder State
+let cameraStream = null;
+let currentFacingMode = 'environment'; // 'environment' | 'user'
+let currentVideoTrack = null;
+let torchEnabled = false;
+let isCapturingPhoto = false;
+
 // DOM Elements
 const stages = {
   capture: document.getElementById('captureSection'),
@@ -31,9 +38,22 @@ const stages = {
 };
 
 const elements = {
+  btnCamera: document.getElementById('btnCamera'),
   cameraInput: document.getElementById('cameraInput'),
   galleryInput: document.getElementById('galleryInput'),
   dropZone: document.getElementById('dropZone'),
+
+  // Native In-App Camera Viewfinder Elements
+  cameraModal: document.getElementById('cameraModal'),
+  cameraViewport: document.getElementById('cameraViewport'),
+  cameraVideo: document.getElementById('cameraVideo'),
+  cameraFocusRing: document.getElementById('cameraFocusRing'),
+  cameraFlashOverlay: document.getElementById('cameraFlashOverlay'),
+  btnShutter: document.getElementById('btnShutter'),
+  btnCloseCamera: document.getElementById('btnCloseCamera'),
+  btnFlipCamera: document.getElementById('btnFlipCamera'),
+  btnToggleTorch: document.getElementById('btnToggleTorch'),
+  btnCameraFallback: document.getElementById('btnCameraFallback'),
   
   // Crop & Trace
   btnModeCrop: document.getElementById('btnModeCrop'),
@@ -161,20 +181,26 @@ let audioCtx = null;
 let isSoundEnabled = localStorage.getItem('sound_feedback') !== 'false';
 
 function getAudioContext() {
-  if (!audioCtx) {
-    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-    if (AudioContextClass) {
-      audioCtx = new AudioContextClass();
+  try {
+    if (!audioCtx) {
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      if (AudioContextClass) {
+        audioCtx = new AudioContextClass();
+      }
     }
+    if (audioCtx && audioCtx.state === 'suspended') {
+      audioCtx.resume().catch(() => {});
+    }
+    return audioCtx;
+  } catch (_) {
+    return null;
   }
-  if (audioCtx && audioCtx.state === 'suspended') {
-    audioCtx.resume().catch(() => {});
-  }
-  return audioCtx;
 }
 
-// Pre-unlock AudioContext on first touch/click
-window.addEventListener('pointerdown', () => getAudioContext(), { once: true });
+// Pre-unlock AudioContext on first touch/click across mobile platforms
+['pointerdown', 'touchstart', 'click'].forEach((evt) => {
+  window.addEventListener(evt, () => getAudioContext(), { once: true, passive: true });
+});
 
 function playSound(type = 'click') {
   if (!isSoundEnabled) return;
@@ -189,6 +215,31 @@ function playSound(type = 'click') {
     gain.connect(ctx.destination);
 
     switch (type) {
+      case 'shutter':
+        // Crisp mechanical camera shutter sound (primary click + curtain release)
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(650, now);
+        osc.frequency.exponentialRampToValueAtTime(140, now + 0.04);
+        gain.gain.setValueAtTime(0.18, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
+        osc.start(now);
+        osc.stop(now + 0.05);
+
+        try {
+          const osc2 = ctx.createOscillator();
+          const gain2 = ctx.createGain();
+          osc2.connect(gain2);
+          gain2.connect(ctx.destination);
+          osc2.type = 'sine';
+          osc2.frequency.setValueAtTime(900, now + 0.05);
+          osc2.frequency.exponentialRampToValueAtTime(180, now + 0.09);
+          gain2.gain.setValueAtTime(0.12, now + 0.05);
+          gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
+          osc2.start(now + 0.05);
+          osc2.stop(now + 0.10);
+        } catch (_) {}
+        break;
+
       case 'click':
       case 'tick':
         // Gentle wood-block / Switch click (short sine drop)
@@ -618,9 +669,35 @@ function initKeyboardShortcuts() {
 // Event Listeners
 // ==========================================
 function initEventListeners() {
-  // File inputs
-  elements.cameraInput.addEventListener('change', handleFileInput);
-  elements.galleryInput.addEventListener('change', handleFileInput);
+  // Camera trigger & file inputs
+  if (elements.btnCamera) {
+    elements.btnCamera.addEventListener('click', (e) => {
+      e.preventDefault();
+      openNativeCamera();
+    });
+  }
+  if (elements.cameraInput) elements.cameraInput.addEventListener('change', handleFileInput);
+  if (elements.galleryInput) elements.galleryInput.addEventListener('change', handleFileInput);
+
+  // In-App Camera Viewfinder controls
+  if (elements.btnShutter) {
+    elements.btnShutter.addEventListener('click', capturePhoto);
+  }
+  if (elements.btnCloseCamera) {
+    elements.btnCloseCamera.addEventListener('click', closeNativeCamera);
+  }
+  if (elements.btnFlipCamera) {
+    elements.btnFlipCamera.addEventListener('click', flipCamera);
+  }
+  if (elements.btnToggleTorch) {
+    elements.btnToggleTorch.addEventListener('click', toggleTorch);
+  }
+  if (elements.btnCameraFallback) {
+    elements.btnCameraFallback.addEventListener('click', handleCameraFallback);
+  }
+  if (elements.cameraViewport) {
+    elements.cameraViewport.addEventListener('pointerdown', handleCameraTap);
+  }
 
   // Drag and drop
   elements.dropZone.addEventListener('dragover', (e) => {
@@ -847,6 +924,391 @@ function initEventListeners() {
     });
   }
 }
+
+// ==========================================
+// Native In-App Camera Viewfinder
+// ==========================================
+async function openNativeCamera() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    showToast('Camera streaming requires HTTPS or localhost. Opening file chooser fallback.', 'warning');
+    if (elements.cameraInput) elements.cameraInput.click();
+    return;
+  }
+
+  if (elements.cameraModal) {
+    elements.cameraModal.classList.remove('hidden');
+    document.body.classList.add('camera-active');
+  }
+
+  await initCameraStream();
+}
+
+async function initCameraStream() {
+  if (cameraStream) {
+    cameraStream.getTracks().forEach((t) => {
+      try { t.stop(); } catch (_) {}
+    });
+    cameraStream = null;
+  }
+
+  if (elements.cameraVideo) {
+    if (currentFacingMode === 'user') {
+      elements.cameraVideo.classList.add('camera-mirrored');
+    } else {
+      elements.cameraVideo.classList.remove('camera-mirrored');
+    }
+  }
+
+  try {
+    let stream;
+    try {
+      // High-resolution attempt for sharp OCR text recognition
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: { ideal: currentFacingMode },
+          width: { ideal: 2560, min: 1280 },
+          height: { ideal: 1440, min: 720 }
+        },
+        audio: false
+      });
+    } catch (_) {
+      try {
+        // Standard resolution fallback
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: currentFacingMode },
+          audio: false
+        });
+      } catch (__) {
+        // Generic fallback constraint
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: false
+        });
+      }
+    }
+
+    cameraStream = stream;
+    if (elements.cameraVideo) {
+      elements.cameraVideo.srcObject = stream;
+      try {
+        await elements.cameraVideo.play();
+      } catch (playErr) {
+        console.warn('Camera video play interrupted or delayed:', playErr);
+      }
+    }
+
+    currentVideoTrack = stream.getVideoTracks()[0];
+    if (currentVideoTrack) {
+      currentVideoTrack.addEventListener('ended', () => {
+        closeNativeCamera();
+      });
+    }
+
+    // Detect torch / flashlight capability
+    if (currentVideoTrack && currentVideoTrack.getCapabilities) {
+      const caps = currentVideoTrack.getCapabilities();
+      if (caps && caps.torch) {
+        if (elements.btnToggleTorch) elements.btnToggleTorch.classList.remove('hidden');
+      } else {
+        if (elements.btnToggleTorch) elements.btnToggleTorch.classList.add('hidden');
+      }
+    } else {
+      if (elements.btnToggleTorch) elements.btnToggleTorch.classList.add('hidden');
+    }
+
+    // Detect multiple video cameras (e.g. front and rear)
+    if (navigator.mediaDevices.enumerateDevices) {
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const videoDevices = devices.filter((d) => d.kind === 'videoinput');
+        if (elements.btnFlipCamera) {
+          if (videoDevices.length > 1) {
+            elements.btnFlipCamera.classList.remove('hidden');
+          } else {
+            elements.btnFlipCamera.classList.add('hidden');
+          }
+        }
+      } catch (_) {}
+    }
+  } catch (err) {
+    console.error('Camera stream error:', err);
+    closeNativeCamera();
+
+    if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+      showToast('Camera permission denied. Opening file picker fallback.', 'warning');
+    } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+      showToast('Camera is busy or in use by another app. Opening file picker fallback.', 'warning');
+    } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+      showToast('No camera found on this device. Opening file picker fallback.', 'warning');
+    } else if (err.name === 'SecurityError') {
+      showToast('Camera access requires HTTPS or localhost. Opening file picker fallback.', 'warning');
+    } else {
+      showToast(`Camera error (${err.name || 'unsupported'}). Opening file picker fallback.`, 'warning');
+    }
+
+    if (elements.cameraInput) {
+      elements.cameraInput.click();
+    }
+  }
+}
+
+async function capturePhoto() {
+  if (!cameraStream || isCapturingPhoto) return;
+  isCapturingPhoto = true;
+
+  // 1. Shutter sound & haptics
+  playSound('shutter');
+  if (navigator.vibrate) {
+    try {
+      navigator.vibrate(35);
+    } catch (_) {}
+  }
+
+  // 2. Visual shutter flash
+  if (elements.cameraFlashOverlay) {
+    elements.cameraFlashOverlay.classList.add('flash-active');
+  }
+
+  try {
+    let capturedBlob = null;
+    let capturedDataUrl = null;
+
+    // Try ImageCapture API first (delivers full native camera sensor resolution!)
+    if (typeof ImageCapture !== 'undefined' && currentVideoTrack) {
+      try {
+        const imageCapture = new ImageCapture(currentVideoTrack);
+        const photoBlob = await imageCapture.takePhoto();
+        if (currentFacingMode === 'user') {
+          // Mirror selfie camera photo horizontally to match viewfinder orientation
+          try {
+            const bmp = await createImageBitmap(photoBlob);
+            const canvas = document.createElement('canvas');
+            canvas.width = bmp.width;
+            canvas.height = bmp.height;
+            const ctx = canvas.getContext('2d');
+            ctx.translate(bmp.width, 0);
+            ctx.scale(-1, 1);
+            ctx.drawImage(bmp, 0, 0);
+            if (bmp.close) bmp.close();
+            capturedBlob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.95));
+          } catch (_) {
+            capturedBlob = photoBlob;
+          }
+        } else {
+          capturedBlob = photoBlob;
+        }
+      } catch (err) {
+        console.warn('ImageCapture.takePhoto failed, using canvas fallback:', err);
+      }
+    }
+
+    // Canvas fallback from live video element (iOS Safari, Firefox Android, etc.)
+    if (!capturedBlob) {
+      const video = elements.cameraVideo;
+      if (video && video.readyState < 2) {
+        // Wait briefly for video frame data if not ready
+        await new Promise((resolve) => {
+          const timer = setTimeout(resolve, 500);
+          const onData = () => {
+            clearTimeout(timer);
+            video.removeEventListener('loadeddata', onData);
+            resolve();
+          };
+          video.addEventListener('loadeddata', onData, { once: true });
+        });
+      }
+
+      const width = (video && video.videoWidth) ? video.videoWidth : 1920;
+      const height = (video && video.videoHeight) ? video.videoHeight : 1080;
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+
+      // Mirror horizontally if user-facing (selfie) camera
+      if (currentFacingMode === 'user') {
+        ctx.translate(width, 0);
+        ctx.scale(-1, 1);
+      }
+
+      if (video && video.readyState >= 2) {
+        ctx.drawImage(video, 0, 0, width, height);
+        capturedDataUrl = canvas.toDataURL('image/jpeg', 0.95);
+      } else {
+        throw new Error('Video frame not available');
+      }
+    }
+
+    // If modal was closed by user while photo capture was pending, abandon
+    if (elements.cameraModal && elements.cameraModal.classList.contains('hidden')) {
+      return;
+    }
+
+    // Stop camera stream & hide viewfinder
+    closeNativeCamera();
+
+    // Hand off to CardLens image pipeline
+    if (capturedBlob) {
+      const safeBlob = capturedBlob.type ? capturedBlob : new Blob([capturedBlob], { type: 'image/jpeg' });
+      loadImageFromFile(safeBlob);
+    } else if (capturedDataUrl) {
+      initCropper(capturedDataUrl);
+    }
+  } catch (err) {
+    console.error('Photo capture failed:', err);
+    showToast(`Failed to capture photo: ${err.message}`, 'error');
+  } finally {
+    isCapturingPhoto = false;
+    if (elements.cameraFlashOverlay) {
+      setTimeout(() => {
+        elements.cameraFlashOverlay.classList.remove('flash-active');
+      }, 150);
+    }
+  }
+}
+
+function closeNativeCamera() {
+  if (torchEnabled && currentVideoTrack && currentVideoTrack.applyConstraints) {
+    try {
+      currentVideoTrack.applyConstraints({ advanced: [{ torch: false }] }).catch(() => {});
+    } catch (_) {}
+  }
+
+  if (cameraStream) {
+    cameraStream.getTracks().forEach((track) => {
+      try {
+        track.stop();
+      } catch (_) {}
+    });
+    cameraStream = null;
+  }
+  currentVideoTrack = null;
+  torchEnabled = false;
+
+  if (elements.cameraVideo) {
+    try {
+      elements.cameraVideo.pause();
+    } catch (_) {}
+    elements.cameraVideo.srcObject = null;
+  }
+  if (elements.cameraModal) {
+    elements.cameraModal.classList.add('hidden');
+  }
+  document.body.classList.remove('camera-active');
+
+  if (elements.btnToggleTorch) {
+    elements.btnToggleTorch.classList.remove('torch-on');
+    elements.btnToggleTorch.classList.add('hidden');
+  }
+}
+
+async function toggleTorch() {
+  if (!currentVideoTrack || !currentVideoTrack.applyConstraints) return;
+  try {
+    torchEnabled = !torchEnabled;
+    await currentVideoTrack.applyConstraints({
+      advanced: [{ torch: torchEnabled }]
+    });
+    if (elements.btnToggleTorch) {
+      if (torchEnabled) {
+        elements.btnToggleTorch.classList.add('torch-on');
+      } else {
+        elements.btnToggleTorch.classList.remove('torch-on');
+      }
+    }
+    playSound('click');
+  } catch (err) {
+    console.warn('Torch toggle failed:', err);
+    torchEnabled = false;
+    if (elements.btnToggleTorch) {
+      elements.btnToggleTorch.classList.remove('torch-on');
+    }
+  }
+}
+
+async function flipCamera() {
+  currentFacingMode = currentFacingMode === 'environment' ? 'user' : 'environment';
+  playSound('click');
+  await initCameraStream();
+}
+
+function handleCameraTap(e) {
+  if (e.target.closest('button') || e.target.closest('.camera-top-bar') || e.target.closest('.camera-bottom-bar')) {
+    return;
+  }
+  if (e.pointerType === 'mouse' && e.button !== 0) return;
+
+  const viewport = elements.cameraViewport;
+  const ring = elements.cameraFocusRing;
+  if (!viewport || !ring) return;
+
+  const rect = viewport.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+
+  ring.style.left = `${x}px`;
+  ring.style.top = `${y}px`;
+  ring.classList.remove('focus-active');
+  void ring.offsetWidth; // Force DOM reflow to re-trigger CSS animation
+  ring.classList.add('focus-active');
+
+  if (navigator.vibrate) {
+    try { navigator.vibrate(12); } catch (_) {}
+  }
+
+  // Attempt pointsOfInterest autofocus if supported by hardware
+  if (currentVideoTrack && currentVideoTrack.applyConstraints) {
+    try {
+      const normX = Math.max(0, Math.min(1, x / rect.width));
+      const normY = Math.max(0, Math.min(1, y / rect.height));
+      currentVideoTrack.applyConstraints({
+        advanced: [
+          {
+            pointsOfInterest: [{ x: normX, y: normY }],
+            focusMode: 'continuous'
+          }
+        ]
+      }).catch(() => {});
+    } catch (_) {}
+  }
+}
+
+function handleCameraFallback() {
+  closeNativeCamera();
+  if (elements.cameraInput) {
+    elements.cameraInput.click();
+  }
+}
+
+// Lifecycle cleanups for camera stream
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden && cameraStream) {
+    closeNativeCamera();
+  }
+});
+window.addEventListener('pagehide', () => {
+  if (cameraStream) {
+    closeNativeCamera();
+  }
+});
+window.addEventListener('beforeunload', () => {
+  if (cameraStream) {
+    closeNativeCamera();
+  }
+});
+window.addEventListener('keydown', (e) => {
+  if (!cameraStream) return;
+  if (e.key === 'Escape') {
+    e.preventDefault();
+    closeNativeCamera();
+  } else if (e.key === ' ' || e.key === 'Enter') {
+    if (document.activeElement && (document.activeElement.tagName === 'BUTTON' || document.activeElement.tagName === 'INPUT')) {
+      return;
+    }
+    e.preventDefault();
+    capturePhoto();
+  }
+});
 
 // ==========================================
 // Image Loading & Cropping
