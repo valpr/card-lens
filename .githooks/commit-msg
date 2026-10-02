@@ -1,0 +1,33 @@
+#!/bin/sh
+# commit-msg: enforce Conventional Commits subject format.
+# Allows: Merge commits, Revert commits.
+# Requires: type[(scope)][!]: subject  e.g. "fix: show word not note id"
+set -u
+
+msg_file=${1:?usage: commit-msg <message-file>}
+
+subject=$(head -n 1 "$msg_file" | tr -d '\r')
+
+# Allow merge / revert commits.
+case "$subject" in
+  Merge\ *|Revert\ *) exit 0 ;;
+esac
+
+# type must be lowercase conventional type.
+if ! printf '%s' "$subject" | grep -Eq '^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\([^)]+\))?(!)?: .+'; then
+  echo "commit-msg: invalid subject: \"$subject\"" >&2
+  echo "" >&2
+  echo "Expected Conventional Commits format:" >&2
+  echo "  <type>[(scope)][!]: <subject>" >&2
+  echo "  types: feat fix docs style refactor perf test build ci chore revert" >&2
+  echo "  e.g. fix: show Anki card word instead of note number" >&2
+  exit 1
+fi
+
+len=$(printf '%s' "$subject" | wc -m | tr -d ' ')
+if [ "$len" -gt 100 ]; then
+  echo "commit-msg: subject too long ($len chars, max 100)" >&2
+  exit 1
+fi
+
+exit 0

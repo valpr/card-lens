@@ -354,6 +354,26 @@ Yes! In **⚙️ Settings → Image Field Template**, you can change `<img src="
 
 ---
 
+## 🛠️ Development
+
+### Git hooks
+
+Zero-dependency hooks live in `.githooks/` (enabled via `core.hooksPath`):
+
+| Hook | What it does |
+|------|--------------|
+| `pre-commit` | Rejects whitespace errors, syntax-checks staged Python (`py_compile`) and JS (`node --check`), blocks files >1 MiB |
+| `commit-msg` | Enforces [Conventional Commits](https://www.conventionalcommits.org/) (`feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert: subject`, max 100 chars) |
+| `pre-push` | Fast checks only: Python compile + JS syntax + JS unit tests. Full suite (including live Lens OCR tests) runs in CI |
+
+```sh
+git config core.hooksPath .githooks
+```
+
+CI mirrors this server-side: `ci.yml` runs the full test suite on push/PR, and `commitlint.yml` validates commit message format (hooks can be bypassed with `--no-verify`).
+
+---
+
 ## 📄 License
 
 BSD 3-Clause License. See [LICENSE](LICENSE) for details. Designed with ❤️ for Japanese language learners and immersion miners.

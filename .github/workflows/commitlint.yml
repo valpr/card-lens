@@ -1,0 +1,56 @@
+name: Commitlint
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  conventional-commits:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          # Full history so the push/PR commit range is available.
+          fetch-depth: 0
+
+      - name: Check commit message format
+        shell: bash
+        run: |
+          set -u
+          pattern='^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\([^)]+\))?(!)?: .+'
+          fail=0
+
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            range="${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}"
+          else
+            if [ "${{ github.event.before }}" = "0000000000000000000000000000000000000000" ]; then
+              range="HEAD"
+            else
+              range="${{ github.event.before }}..${{ github.sha }}"
+            fi
+          fi
+
+          echo "Checking commits in range: $range"
+          while IFS= read -r sha; do
+            subject=$(git log --format=%s -n 1 "$sha")
+            case "$subject" in
+              Merge\ *|Revert\ *) echo "OK (skip): $subject"; continue ;;
+            esac
+            if printf '%s' "$subject" | grep -Eq "$pattern"; then
+              echo "OK: $subject"
+            else
+              echo "FAIL: $subject ($sha)" >&2
+              fail=1
+            fi
+          done < <(git log --format=%H "$range")
+
+          if [ "$fail" -ne 0 ]; then
+            echo "" >&2
+            echo "Commit messages must follow Conventional Commits:" >&2
+            echo "  <type>[(scope)][!]: <subject>" >&2
+            echo "  types: feat fix docs style refactor perf test build ci chore revert" >&2
+            exit 1
+          fi

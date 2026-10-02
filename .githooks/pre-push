@@ -1,0 +1,39 @@
+#!/bin/sh
+# pre-push: fast local checks before pushing.
+# Intentionally does NOT run tests/test_api.py (hits live Google Lens OCR:
+# slow + needs network). The full suite runs in CI on push/PR.
+set -u
+
+fail=0
+
+if command -v python3 >/dev/null 2>&1; then
+  if ! python3 -m py_compile main.py; then
+    echo "pre-push: python syntax check failed (main.py)" >&2
+    fail=1
+  fi
+else
+  echo "pre-push: warning: python3 not found, skipping py check" >&2
+fi
+
+if command -v node >/dev/null 2>&1; then
+  for f in frontend/app.js frontend/ankiconnect.js frontend/sw.js; do
+    if [ -f "$f" ] && ! node --check "$f"; then
+      echo "pre-push: node --check failed ($f)" >&2
+      fail=1
+    fi
+  done
+  for t in tests/test_ankiconnect.mjs tests/test_line_merging.mjs; do
+    if [ -f "$t" ] && ! node "$t"; then
+      echo "pre-push: JS test failed ($t)" >&2
+      fail=1
+    fi
+  done
+else
+  echo "pre-push: warning: node not found, skipping JS checks (CI will run them)" >&2
+fi
+
+if [ "$fail" -ne 0 ]; then
+  echo "pre-push: blocked by failing checks above (bypass with --no-verify, CI will still run)" >&2
+fi
+
+exit $fail

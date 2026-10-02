@@ -1,0 +1,56 @@
+#!/bin/sh
+# pre-commit: fast local checks on staged changes.
+# Zero-dependency: only uses git, python3, and node (when available).
+set -u
+
+fail=0
+
+# 1. Reject trailing whitespace / conflict markers in staged changes.
+if ! git diff --cached --check --; then
+  echo "pre-commit: fix whitespace errors above (git diff --cached --check)" >&2
+  fail=1
+fi
+
+staged=$(git diff --cached --name-only --diff-filter=ACM -- || true)
+
+# 2. Python syntax check on staged .py files.
+py_files=$(printf '%s\n' "$staged" | grep '\.py$' || true)
+if [ -n "$py_files" ]; then
+  if command -v python3 >/dev/null 2>&1; then
+    # shellcheck disable=SC2086
+    if ! python3 -m py_compile $py_files; then
+      echo "pre-commit: python syntax check failed" >&2
+      fail=1
+    fi
+  else
+    echo "pre-commit: warning: python3 not found, skipping .py syntax check" >&2
+  fi
+fi
+
+# 3. JavaScript syntax check on staged .js files.
+js_files=$(printf '%s\n' "$staged" | grep '\.js$' || true)
+if [ -n "$js_files" ]; then
+  if command -v node >/dev/null 2>&1; then
+    # shellcheck disable=SC2086
+    if ! node --check $js_files; then
+      echo "pre-commit: node --check failed" >&2
+      fail=1
+    fi
+  else
+    echo "pre-commit: warning: node not found, skipping .js syntax check (CI will check)" >&2
+  fi
+fi
+
+# 4. Reject accidentally staged large files (>1 MiB), excluding git-tracked locks.
+large=$(git diff --cached --name-only --diff-filter=ACM -- | while IFS= read -r f; do
+  [ -f "$f" ] || continue
+  size=$(wc -c <"$f" 2>/dev/null || echo 0)
+  if [ "$size" -gt 1048576 ]; then echo "$f"; fi
+done)
+if [ -n "$large" ]; then
+  echo "pre-commit: refusing files >1 MiB (use Git LFS or unstage):" >&2
+  printf '%s\n' "$large" >&2
+  fail=1
+fi
+
+exit $fail
