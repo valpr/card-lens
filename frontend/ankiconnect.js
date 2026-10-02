@@ -224,6 +224,54 @@ const AnkiConnect = {
   },
 
   /**
+   * Derive a short human-readable display name for a note (word over sentence).
+   * Skips picture/image fields and empty/image-only values, prefers short
+   * word-like fields, truncates to maxLen.
+   * @param {object} noteInfo notesInfo entry ({ fields: { Name: { value } } })
+   * @param {number} maxLen Max characters before truncation (default 30)
+   * @returns {string} Display text or '' when nothing readable is found
+   */
+  getNoteDisplayName(noteInfo, maxLen = 30) {
+    const fields = (noteInfo && noteInfo.fields) || {};
+    const strip = (html) => String(html == null ? '' : html)
+      .replace(/<[^>]*>/g, '')
+      .replace(/&nbsp;/gi, ' ')
+      .replace(/&lt;/gi, '<')
+      .replace(/&gt;/gi, '>')
+      .replace(/&quot;/gi, '"')
+      .replace(/&#39;|&apos;/gi, "'")
+      .replace(/&amp;/gi, '&')
+      .trim();
+    const isPictureField = (name) => /picture|image|photo|screenshot/i.test(name || '');
+    const shortPriority = [
+      'expression', 'word', 'vocab', 'vocabulary', 'term', 'headword',
+      'key', 'front', 'reading', 'kana', 'furigana'
+    ];
+
+    const candidates = [];
+    for (const [name, field] of Object.entries(fields)) {
+      if (isPictureField(name)) continue;
+      const text = strip(field && field.value);
+      if (!text) continue;
+      const lower = String(name).toLowerCase();
+      let rank = shortPriority.findIndex((p) => lower === p || lower.includes(p));
+      rank = rank === -1 ? shortPriority.length : rank;
+      candidates.push({ name, text, rank, len: text.length });
+    }
+    if (candidates.length === 0) return '';
+
+    // Prefer priority word-like fields, then shortest text (avoids sentences)
+    candidates.sort((a, b) => (a.rank - b.rank) || (a.len - b.len));
+
+    let best = candidates[0].text.replace(/\s+/g, ' ').trim();
+    const limit = Math.max(1, maxLen || 30);
+    if (best.length > limit) {
+      best = `${best.slice(0, limit - 1).trimEnd()}…`;
+    }
+    return best;
+  },
+
+  /**
    * Attach image to a specific note ID
    * @param {number} noteId
    * @param {string} base64Data
@@ -276,7 +324,7 @@ const AnkiConnect = {
       console.warn('Could not add cardlens tag to note:', tagErr);
     }
 
-    const firstFieldValue = Object.values(currentFields)[0]?.value?.replace(/<[^>]+>/g, '').trim() || '';
+    const firstFieldValue = this.getNoteDisplayName(noteInfo);
 
     return {
       noteId,

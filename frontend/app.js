@@ -531,7 +531,7 @@ function resumeAutoAttachPolling() {
           attachedNoteIds.add(targetNoteId);
           playSound('success');
 
-          const label = result.noteName ? `"${result.noteName}"` : `Note #${result.noteId}`;
+          const label = formatAttachedLabel(result);
           showToast(`✅ Auto-attached to ${label} (${result.fieldUsed}) [Card #${attachedNoteIds.size}]`, 'success', 5000);
         }
 
@@ -1879,6 +1879,19 @@ async function handleCropSubmit() {
 // ==========================================
 // Yomitan & AnkiConnect Integration
 // ==========================================
+function formatAttachedLabel(result) {
+  if (result && result.noteName) return `"${result.noteName}"`;
+  const ocrFallback = (typeof currentOcrText === 'string' && currentOcrText.trim())
+    || (typeof rawOcrText === 'string' && rawOcrText.trim())
+    || '';
+  if (ocrFallback) {
+    const compact = ocrFallback.replace(/\s+/g, ' ').trim();
+    const limit = 30;
+    const short = compact.length > limit ? `${compact.slice(0, limit - 1).trimEnd()}…` : compact;
+    return `"${short}"`;
+  }
+  return 'latest card';
+}
 async function handleAttachToAnki() {
   if (!currentCroppedBase64) {
     showToast('No cropped image available to attach.', 'error');
@@ -1934,7 +1947,10 @@ async function handleAttachToAnki() {
       }
 
       // Get expression / first field text
-      const firstVal = Object.values(fields)[0]?.value?.replace(/<[^>]+>/g, '').trim() || '';
+      const displayVal = (AnkiConnect.getNoteDisplayName
+        ? AnkiConnect.getNoteDisplayName(noteInfo)
+        : Object.values(fields)[0]?.value?.replace(/<[^>]+>/g, '').trim()) || '';
+      const firstVal = displayVal;
       const sentenceVal = fields['Sentence']?.value?.replace(/<[^>]+>/g, '').trim() || '';
 
       const isTextMatch = (firstVal && (currentOcrText.includes(firstVal) || rawOcrText.includes(firstVal))) ||
@@ -1949,7 +1965,8 @@ async function handleAttachToAnki() {
         btn.innerHTML = originalHtml;
         playSound('error');
         if (existingPic) {
-          showToast(`⚠️ No new card detected. Latest card "${firstVal}" already has a picture attached! Mine a new card with Yomitan first.`, 'error', 5500);
+          const guardLabel = firstVal ? `"${firstVal}"` : formatAttachedLabel({ noteName: '' });
+          showToast(`⚠️ No new card detected. Latest card ${guardLabel} already has a picture attached! Mine a new card with Yomitan first.`, 'error', 5500);
         } else {
           showToast(`⚠️ No new card detected for this image! Mine a word with Yomitan first.`, 'error', 5500);
         }
@@ -1962,7 +1979,7 @@ async function handleAttachToAnki() {
     attachedNoteIds.add(targetNoteId);
     playSound('success');
 
-    const label = result.noteName ? `"${result.noteName}"` : `Note #${result.noteId}`;
+    const label = formatAttachedLabel(result);
     showToast(`✅ Image attached to ${label} (${result.fieldUsed}) [Card #${attachedNoteIds.size}]`, 'success', 4500);
 
     // Briefly show attached status, then update to ready state
